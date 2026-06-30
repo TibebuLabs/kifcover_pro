@@ -1,0 +1,21 @@
+{
+  "name": "kifcover_pro",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "yarn workspace @kifcover/web dev",
+    "dev:api": "yarn workspace @kifcover/api start:dev",
+    "build:web": "yarn workspace @kifcover/web build",
+    "build:api": "yarn workspace @kifcover/api build",
+    "dev": "concurrently \"yarn dev:api\" \"yarn dev:web\"",
+    "db:generate": "yarn workspace @kifcover/api prisma:generate",
+    "db:migrate": "yarn workspace @kifcover/api prisma:migrate"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
