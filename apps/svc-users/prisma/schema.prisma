@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/svc-users-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Users service owns: profile data, KYC status, partner association
+// Credentials live in svc-auth
+
+model UserProfile {
+  id        String    @id @default(uuid()) // same ID as AuthUser in svc-auth
+  email     String    @unique
+  phone     String?   @unique
+  firstName String
+  lastName  String
+  role      UserRole  @default(CUSTOMER)
+  kycStatus KycStatus @default(PENDING)
+  isActive  Boolean   @default(true)
+  partnerId String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([email])
+  @@index([partnerId])
+  @@map("user_profiles")
+}
+
+enum UserRole {
+  CUSTOMER
+  PARTNER_ADMIN
+  PLATFORM_ADMIN
+  INSURANCE_PROVIDER
+}
+
+enum KycStatus {
+  PENDING
+  IN_PROGRESS
+  VERIFIED
+  REJECTED
+}

@@ -1,0 +1,31 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/svc-quotes-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Quotes service stores quotes only — product data is fetched via TCP from svc-products
+// productName/category cached here to avoid cross-service lookups on read
+
+model Quote {
+  id             String   @id @default(uuid())
+  userId         String?
+  productId      String   // FK reference (logical — no DB constraint across services)
+  productName    String   // cached for display without cross-service call
+  premium        Float
+  coverageAmount Float
+  durationDays   Int
+  metadata       Json     @default("{}")
+  expiresAt      DateTime
+  convertedAt    DateTime? // set when quote becomes a policy
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([productId])
+  @@index([expiresAt])
+  @@map("quotes")
+}

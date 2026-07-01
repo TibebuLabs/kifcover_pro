@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/svc-claims-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Claim {
+  id             String      @id @default(uuid())
+  claimNumber    String      @unique @default(uuid())
+  userId         String      // ref to svc-users (logical FK)
+  policyId       String      // ref to svc-policies (logical FK)
+  policyNumber   String      // cached for display
+  status         ClaimStatus @default(SUBMITTED)
+  description    String
+  incidentDate   DateTime
+  claimAmount    Float
+  approvedAmount Float?
+  documents      Json        @default("[]")
+  adminNotes     String?
+  resolvedAt     DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([policyId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("claims")
+}
+
+enum ClaimStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PAID
+}

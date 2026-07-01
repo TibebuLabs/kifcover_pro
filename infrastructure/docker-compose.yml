@@ -1,11 +1,33 @@
 version: '3.9'
 
-# ─── Shared env for all microservices ─────────────────────────────────────────
-x-svc-env: &svc-env
-  DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres:5432/kifcoverdb
+# ─── Shared base env for all microservices ────────────────────────────────────
+x-svc-common: &svc-common
+  restart: unless-stopped
+  depends_on:
+    postgres-auth:     { condition: service_healthy }
+    postgres-users:    { condition: service_healthy }
+    postgres-products: { condition: service_healthy }
+    postgres-quotes:   { condition: service_healthy }
+    postgres-policies: { condition: service_healthy }
+    postgres-claims:   { condition: service_healthy }
+    postgres-payments: { condition: service_healthy }
+    postgres-kyc:      { condition: service_healthy }
+    postgres-partners: { condition: service_healthy }
+    postgres-analytics:{ condition: service_healthy }
+
+x-pg-healthcheck: &pg-healthcheck
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U postgres"]
+    interval: 5s
+    timeout: 5s
+    retries: 10
+
+x-gateway-env: &gateway-env
   JWT_SECRET: ${JWT_SECRET:-super-secret-change-in-prod}
   JWT_EXPIRES_IN: 7d
-  SERVICE_HOST: localhost   # services resolve each other via Docker network
+  SERVICE_HOST: localhost
+  GATEWAY_PORT: 3000
+  PORT: 3000
   AUTH_SVC_PORT: 3001
   USERS_SVC_PORT: 3002
   PRODUCTS_SVC_PORT: 3003
@@ -16,42 +38,83 @@ x-svc-env: &svc-env
   KYC_SVC_PORT: 3008
   PARTNERS_SVC_PORT: 3009
   ANALYTICS_SVC_PORT: 3010
+  FRONTEND_URL: http://localhost:4000
 
 services:
 
-  # ── Infrastructure ──────────────────────────────────────────────────────────
+  # ── 10 Postgres instances (one per service) ──────────────────────────────────
 
-  postgres:
+  postgres-auth:
     image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: kifcoverdb
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_auth, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
+    volumes: [pgdata-auth:/var/lib/postgresql/data]
+    ports: ["5432:5432"]
 
-  # Run migrations once at startup
-  migrate:
-    build:
-      context: ..
-      dockerfile: infrastructure/Dockerfile.service
-      args: { SERVICE: svc-auth }
-    command: >
-      sh -c "npx prisma migrate deploy --schema=./packages/prisma/prisma/schema.prisma && npx prisma db seed --schema=./packages/prisma/prisma/schema.prisma"
-    environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres:5432/kifcoverdb
-    depends_on:
-      postgres: { condition: service_healthy }
-    restart: "no"
+  postgres-users:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_users, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
+    volumes: [pgdata-users:/var/lib/postgresql/data]
+    ports: ["5433:5432"]
 
-  # ── API Gateway (single public entry point) ─────────────────────────────────
+  postgres-products:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_products, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
+    volumes: [pgdata-products:/var/lib/postgresql/data]
+    ports: ["5434:5432"]
+
+  postgres-quotes:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_quotes, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
+    volumes: [pgdata-quotes:/var/lib/postgresql/data]
+    ports: ["5435:5432"]
+
+  postgres-policies:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_policies, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
+    volumes: [pgdata-policies:/var/lib/postgresql/data]
+    ports: ["5436:5432"]
+
+  postgres-claims:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_claims, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
+    volumes: [pgdata-claims:/var/lib/postgresql/data]
+    ports: ["5437:5432"]
+
+  postgres-payments:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_payments, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
+    volumes: [pgdata-payments:/var/lib/postgresql/data]
+    ports: ["5438:5432"]
+
+  postgres-kyc:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_kyc, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
+    volumes: [pgdata-kyc:/var/lib/postgresql/data]
+    ports: ["5439:5432"]
+
+  postgres-partners:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_partners, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
+    volumes: [pgdata-partners:/var/lib/postgresql/data]
+    ports: ["5440:5432"]
+
+  postgres-analytics:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_analytics, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
+    volumes: [pgdata-analytics:/var/lib/postgresql/data]
+    ports: ["5441:5432"]
+
+  # ── API Gateway ────────────────────────────────────────────────────────────
 
   gateway:
     build:
@@ -59,12 +122,8 @@ services:
       dockerfile: infrastructure/Dockerfile.service
       args: { SERVICE: gateway }
     environment:
-      <<: *svc-env
-      GATEWAY_PORT: 3000
-      FRONTEND_URL: http://localhost:4000
-      PORT: 3000
-    ports:
-      - "3000:3000"
+      <<: *gateway-env
+    ports: ["3000:3000"]
     depends_on:
       - svc-auth
       - svc-users
@@ -78,7 +137,7 @@ services:
       - svc-analytics
     restart: unless-stopped
 
-  # ── Microservices ────────────────────────────────────────────────────────────
+  # ── Microservices ──────────────────────────────────────────────────────────
 
   svc-auth:
     build:
@@ -86,10 +145,12 @@ services:
       dockerfile: infrastructure/Dockerfile.service
       args: { SERVICE: svc-auth }
     environment:
-      <<: *svc-env
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-auth:5432/kif_auth
+      JWT_SECRET: ${JWT_SECRET:-super-secret-change-in-prod}
+      JWT_EXPIRES_IN: 7d
       PORT: 3001
     depends_on:
-      migrate: { condition: service_completed_successfully }
+      postgres-auth: { condition: service_healthy }
     restart: unless-stopped
 
   svc-users:
@@ -98,10 +159,10 @@ services:
       dockerfile: infrastructure/Dockerfile.service
       args: { SERVICE: svc-users }
     environment:
-      <<: *svc-env
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-users:5432/kif_users
       PORT: 3002
     depends_on:
-      migrate: { condition: service_completed_successfully }
+      postgres-users: { condition: service_healthy }
     restart: unless-stopped
 
   svc-products:
@@ -110,10 +171,10 @@ services:
       dockerfile: infrastructure/Dockerfile.service
       args: { SERVICE: svc-products }
     environment:
-      <<: *svc-env
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-products:5432/kif_products
       PORT: 3003
     depends_on:
-      migrate: { condition: service_completed_successfully }
+      postgres-products: { condition: service_healthy }
     restart: unless-stopped
 
   svc-quotes:
@@ -122,10 +183,10 @@ services:
       dockerfile: infrastructure/Dockerfile.service
       args: { SERVICE: svc-quotes }
     environment:
-      <<: *svc-env
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-quotes:5432/kif_quotes
       PORT: 3004
     depends_on:
-      migrate: { condition: service_completed_successfully }
+      postgres-quotes: { condition: service_healthy }
     restart: unless-stopped
 
   svc-policies:
@@ -134,10 +195,12 @@ services:
       dockerfile: infrastructure/Dockerfile.service
       args: { SERVICE: svc-policies }
     environment:
-      <<: *svc-env
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-policies:5432/kif_policies
       PORT: 3005
+      USERS_SVC_PORT: 3002
+      SERVICE_HOST: localhost
     depends_on:
-      migrate: { condition: service_completed_successfully }
+      postgres-policies: { condition: service_healthy }
     restart: unless-stopped
 
   svc-claims:
@@ -146,10 +209,10 @@ services:
       dockerfile: infrastructure/Dockerfile.service
       args: { SERVICE: svc-claims }
     environment:
-      <<: *svc-env
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-claims:5432/kif_claims
       PORT: 3006
     depends_on:
-      migrate: { condition: service_completed_successfully }
+      postgres-claims: { condition: service_healthy }
     restart: unless-stopped
 
   svc-payments:
@@ -158,10 +221,10 @@ services:
       dockerfile: infrastructure/Dockerfile.service
       args: { SERVICE: svc-payments }
     environment:
-      <<: *svc-env
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-payments:5432/kif_payments
       PORT: 3007
     depends_on:
-      migrate: { condition: service_completed_successfully }
+      postgres-payments: { condition: service_healthy }
     restart: unless-stopped
 
   svc-kyc:
@@ -170,10 +233,10 @@ services:
       dockerfile: infrastructure/Dockerfile.service
       args: { SERVICE: svc-kyc }
     environment:
-      <<: *svc-env
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-kyc:5432/kif_kyc
       PORT: 3008
     depends_on:
-      migrate: { condition: service_completed_successfully }
+      postgres-kyc: { condition: service_healthy }
     restart: unless-stopped
 
   svc-partners:
@@ -182,10 +245,10 @@ services:
       dockerfile: infrastructure/Dockerfile.service
       args: { SERVICE: svc-partners }
     environment:
-      <<: *svc-env
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-partners:5432/kif_partners
       PORT: 3009
     depends_on:
-      migrate: { condition: service_completed_successfully }
+      postgres-partners: { condition: service_healthy }
     restart: unless-stopped
 
   svc-analytics:
@@ -194,13 +257,13 @@ services:
       dockerfile: infrastructure/Dockerfile.service
       args: { SERVICE: svc-analytics }
     environment:
-      <<: *svc-env
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-analytics:5432/kif_analytics
       PORT: 3010
     depends_on:
-      migrate: { condition: service_completed_successfully }
+      postgres-analytics: { condition: service_healthy }
     restart: unless-stopped
 
-  # ── Web Frontend ─────────────────────────────────────────────────────────────
+  # ── Web Frontend ───────────────────────────────────────────────────────────
 
   web:
     build:
@@ -208,11 +271,18 @@ services:
       dockerfile: infrastructure/Dockerfile.web
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3000/api/v1
-    ports:
-      - "4000:4000"
-    depends_on:
-      - gateway
+    ports: ["4000:4000"]
+    depends_on: [gateway]
     restart: unless-stopped
 
 volumes:
-  pgdata:
+  pgdata-auth:
+  pgdata-users:
+  pgdata-products:
+  pgdata-quotes:
+  pgdata-policies:
+  pgdata-claims:
+  pgdata-payments:
+  pgdata-kyc:
+  pgdata-partners:
+  pgdata-analytics:

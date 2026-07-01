@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/svc-policies-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Policy {
+  id             String       @id @default(uuid())
+  policyNumber   String       @unique @default(uuid())
+  userId         String       // ref to svc-users (logical FK)
+  productId      String       // ref to svc-products (logical FK)
+  productName    String       // cached
+  partnerId      String?      // ref to svc-partners (logical FK)
+  quoteId        String?      @unique // ref to svc-quotes (logical FK)
+  status         PolicyStatus @default(PENDING)
+  premium        Float
+  coverageAmount Float
+  startDate      DateTime
+  endDate        DateTime
+  pdfUrl         String?
+  qrCode         String?
+  metadata       Json         @default("{}")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([partnerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("policies")
+}
+
+enum PolicyStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}

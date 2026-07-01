@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/svc-kyc-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model KycRecord {
+  id        String    @id @default(uuid())
+  userId    String    @unique // logical ref to svc-users
+  status    KycStatus @default(PENDING)
+  updatedAt DateTime  @updatedAt
+  createdAt DateTime  @default(now())
+
+  documents KycDocument[]
+
+  @@index([status])
+  @@map("kyc_records")
+}
+
+model KycDocument {
+  id        String      @id @default(uuid())
+  userId    String
+  type      DocType
+  fileUrl   String
+  status    DocStatus   @default(PENDING)
+  ocrData   Json?
+  reviewedAt DateTime?
+  createdAt DateTime    @default(now())
+
+  record KycRecord @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("kyc_documents")
+}
+
+enum KycStatus {
+  PENDING
+  IN_PROGRESS
+  VERIFIED
+  REJECTED
+}
+
+enum DocType {
+  NATIONAL_ID
+  SELFIE
+  ADDRESS_PROOF
+  PASSPORT
+}
+
+enum DocStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
