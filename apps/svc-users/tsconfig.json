@@ -1,10 +1,25 @@
-{
+﻿{
   "compilerOptions": {
-    "module": "commonjs", "declaration": true, "removeComments": true,
-    "emitDecoratorMetadata": true, "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true, "target": "ES2020",
-    "sourceMap": true, "outDir": "./dist", "baseUrl": "./",
-    "incremental": true, "skipLibCheck": true, "strictNullChecks": false,
-    "paths": { "@kifcover/shared-types": ["../../packages/shared-types/src/index.ts"] }
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2020",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": false,
+    "typeRoots": ["./node_modules/@types", "../../node_modules/@types"],
+    "paths": {
+      "@kifcover/shared-types": ["../../packages/shared-types/src/index.ts"],
+      "@kifcover/shared-events": ["../../packages/shared-events/src/index.ts"],
+      "@nestjs/*": ["../../node_modules/@nestjs/*"],
+      "rxjs": ["../../node_modules/rxjs"],
+      "rxjs/*": ["../../node_modules/rxjs/*"]
+    }
   }
 }
