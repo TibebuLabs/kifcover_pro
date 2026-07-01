@@ -1,53 +1,55 @@
 # KifCover Pro — Microservices Monorepo
 
-Embedded Insurance Infrastructure Platform for Ethiopia.  
-Built as a **microservices monorepo** — 10 independent services + 1 API Gateway + 1 Next.js frontend, all in one Git repo.
+Embedded Insurance Infrastructure Platform for Ethiopia.
+**10 independent NestJS microservices + API Gateway + Next.js 14 frontend**, all in one Git repository.
 
 ---
 
 ## Architecture
 
 ```
-                        ┌─────────────────────────┐
-                        │   Next.js Web App        │  :4000
-                        │   (apps/web)             │
-                        └────────────┬────────────┘
-                                     │ HTTP
-                        ┌────────────▼────────────┐
-                        │   API Gateway           │  :3000
-                        │   (apps/gateway)        │
-                        │   JWT auth, routing,    │
-                        │   Swagger docs          │
-                        └──────┬──────────────────┘
-                               │ NestJS TCP
-          ┌────────────────────┼────────────────────────────┐
-          │                    │                            │
-    ┌─────▼──────┐  ┌──────────▼──────┐  ┌────────────────▼──┐
-    │ svc-auth   │  │  svc-users      │  │  svc-products      │
-    │  :3001     │  │   :3002         │  │   :3003            │
-    └────────────┘  └─────────────────┘  └────────────────────┘
-    ┌────────────┐  ┌─────────────────┐  ┌────────────────────┐
-    │ svc-quotes │  │  svc-policies   │  │  svc-claims        │
-    │  :3004     │  │   :3005         │  │   :3006            │
-    └────────────┘  └─────────────────┘  └────────────────────┘
-    ┌────────────┐  ┌─────────────────┐  ┌────────────────────┐
-    │svc-payments│  │  svc-kyc        │  │  svc-partners      │
-    │  :3007     │  │   :3008         │  │   :3009            │
-    └────────────┘  └─────────────────┘  └────────────────────┘
-                        ┌─────────────────┐
-                        │  svc-analytics  │
-                        │   :3010         │
-                        └─────────────────┘
-                               │
-                        ┌──────▼──────────┐
-                        │   PostgreSQL    │  :5432
-                        └─────────────────┘
+                   ┌──────────────────────────────┐
+                   │   Next.js 14 Web App         │  :4000
+                   │   apps/web                   │
+                   └─────────────┬────────────────┘
+                                 │ HTTP
+                   ┌─────────────▼────────────────┐
+                   │   API Gateway                │  :3000
+                   │   apps/gateway               │
+                   │   · JWT auth & RBAC          │
+                   │   · Request routing          │
+                   │   · Swagger /api/docs        │
+                   └──────┬───────────────────────┘
+                          │ NestJS TCP (MessagePattern)
+     ┌────────────────────┼──────────────────────────────────┐
+     │                    │                                  │
+ ┌───▼──────┐  ┌──────────▼──────┐  ┌──────────────────────▼─┐
+ │svc-auth  │  │  svc-users      │  │  svc-products           │
+ │  :3001   │  │   :3002         │  │   :3003                 │
+ └──────────┘  └─────────────────┘  └────────────────────────┘
+ ┌──────────┐  ┌─────────────────┐  ┌────────────────────────┐
+ │svc-quotes│  │  svc-policies   │  │  svc-claims            │
+ │  :3004   │  │   :3005         │  │   :3006                │
+ └──────────┘  └─────────────────┘  └────────────────────────┘
+ ┌──────────┐  ┌─────────────────┐  ┌────────────────────────┐
+ │svc-pay   │  │  svc-kyc        │  │  svc-partners          │
+ │  :3007   │  │   :3008         │  │   :3009                │
+ └──────────┘  └─────────────────┘  └────────────────────────┘
+                   ┌─────────────────┐
+                   │  svc-analytics  │
+                   │   :3010         │
+                   └────────┬────────┘
+                            │
+                   ┌────────▼────────┐
+                   │   PostgreSQL    │  :5432
+                   └─────────────────┘
 ```
 
-**Communication:**
-- Client → Gateway: **HTTP/REST**
-- Gateway → Services: **NestJS TCP** (MessagePattern)
-- Domain events: **shared-events** contracts (ready for Redis/RabbitMQ upgrade)
+**Communication model:**
+- Browser/Web → Gateway: **HTTP REST**
+- Gateway → Services: **NestJS TCP** (`MessagePattern` / `MSG.*` constants)
+- Domain contracts: **`packages/shared-types`** (enums, DTOs, `MSG.*`)
+- Event schemas: **`packages/shared-events`** (ready for Redis/RabbitMQ upgrade)
 
 ---
 
@@ -56,101 +58,125 @@ Built as a **microservices monorepo** — 10 independent services + 1 API Gatewa
 ```
 kifcover_pro/
 ├── apps/
-│   ├── gateway/          API Gateway — routes all HTTP to TCP services
-│   ├── svc-auth/         Authentication, JWT issuance
-│   ├── svc-users/        User CRUD, profile management
-│   ├── svc-products/     Insurance product catalog
-│   ├── svc-quotes/       Dynamic premium calculation engine
-│   ├── svc-policies/     Policy issuance & lifecycle
-│   ├── svc-claims/       Claims submission & FSM workflow
-│   ├── svc-payments/     Payment initiation & confirmation
-│   ├── svc-kyc/          Identity verification & document upload
-│   ├── svc-partners/     Partner management & API keys
-│   ├── svc-analytics/    Platform KPIs & trends
-│   ├── api/              Legacy monolith (kept for reference)
-│   └── web/              Next.js 14 frontend
+│   ├── gateway/          API Gateway — HTTP entry point, JWT, routing
+│   ├── svc-auth/         Authentication & JWT issuance           :3001
+│   ├── svc-users/        User management & profiles              :3002
+│   ├── svc-products/     Insurance product catalog               :3003
+│   ├── svc-quotes/       Dynamic premium calculation engine      :3004
+│   ├── svc-policies/     Policy issuance & lifecycle             :3005
+│   ├── svc-claims/       Claims FSM workflow                     :3006
+│   ├── svc-payments/     Payment initiation & confirmation       :3007
+│   ├── svc-kyc/          KYC document upload & verification      :3008
+│   ├── svc-partners/     Partner management & API keys           :3009
+│   ├── svc-analytics/    Platform KPIs & trend analytics         :3010
+│   └── web/              Next.js 14 App Router frontend          :4000
 ├── packages/
-│   ├── shared-types/     DTOs, enums, message pattern constants (MSG.*)
+│   ├── prisma/           Shared Prisma schema, migrations, seed
+│   ├── shared-types/     MSG.* constants, DTOs, enums
 │   └── shared-events/    Domain event contracts
 ├── infrastructure/
 │   ├── docker-compose.yml
 │   ├── Dockerfile.service
 │   └── Dockerfile.web
+├── .env.example
 └── README.md
 ```
 
 ---
 
-## Running Locally (Dev Mode)
+## Quick Start (Local Dev)
 
 ### Prerequisites
-- Node.js 20+
-- Yarn (`npm install -g yarn`)
+- Node.js 20+ and Yarn (`npm i -g yarn`)
 - PostgreSQL running locally
 
-### 1. Install dependencies
+### 1. Install
 
 ```bash
 yarn install
 ```
 
-### 2. Set up environment
+### 2. Configure environment
 
 ```bash
 cp .env.example apps/gateway/.env
-# Each service has its own .env already pre-configured in apps/svc-*/.env
+# Each service has a pre-filled .env in apps/svc-*/.env
 # Update DATABASE_URL in each if your Postgres credentials differ
 ```
 
-### 3. Run database migrations
+### 3. Run database migrations + seed
 
 ```bash
-# From apps/api (Prisma lives here)
-cd apps/api
-node_modules/.bin/prisma migrate dev
+# From repo root
+DATABASE_URL="postgresql://postgres:yourpass@localhost:5432/kifcoverdb" yarn db:migrate
+DATABASE_URL="postgresql://postgres:yourpass@localhost:5432/kifcoverdb" node packages/prisma/seed.js
 ```
 
 ### 4. Start all services
 
 ```bash
-# From repo root — starts all 10 services + gateway + web in parallel
 yarn dev
+# Starts: gateway + 10 microservices + web app in parallel with coloured output
 ```
 
 Or start individual services:
 
 ```bash
-yarn dev:gateway    # API Gateway      → localhost:3000
-yarn dev:auth       # Auth Service     → TCP :3001
-yarn dev:users      # Users Service    → TCP :3002
-yarn dev:products   # Products Service → TCP :3003
-yarn dev:quotes     # Quotes Service   → TCP :3004
-yarn dev:policies   # Policies Service → TCP :3005
-yarn dev:claims     # Claims Service   → TCP :3006
-yarn dev:payments   # Payments Service → TCP :3007
-yarn dev:kyc        # KYC Service      → TCP :3008
-yarn dev:partners   # Partners Service → TCP :3009
-yarn dev:analytics  # Analytics Service→ TCP :3010
-yarn dev:web        # Next.js Frontend → localhost:4000
+yarn dev:gateway    # → http://localhost:3000
+yarn dev:auth       # → TCP :3001
+yarn dev:products   # → TCP :3003
+yarn dev:web        # → http://localhost:4000
 ```
 
-### URLs in dev
+---
 
-| Service | URL |
-|---------|-----|
+## Service / Port Map
+
+| App | Role | Port |
+|-----|------|------|
+| `gateway` | HTTP API entry point, Swagger | 3000 |
+| `svc-auth` | Register, login, JWT | 3001 |
+| `svc-users` | User CRUD, profiles | 3002 |
+| `svc-products` | Insurance product catalog | 3003 |
+| `svc-quotes` | Dynamic quote/premium engine | 3004 |
+| `svc-policies` | Policy issuance & management | 3005 |
+| `svc-claims` | Claims FSM (submit → review → pay) | 3006 |
+| `svc-payments` | Telebirr / bank payment flow | 3007 |
+| `svc-kyc` | Document upload & KYC verification | 3008 |
+| `svc-partners` | Partner registration & API keys | 3009 |
+| `svc-analytics` | KPIs, trends, GWP | 3010 |
+| `web` | Next.js 14 frontend | 4000 |
+| PostgreSQL | Shared database | 5432 |
+
+---
+
+## URLs
+
+| What | URL |
+|------|-----|
 | Web App | http://localhost:4000 |
 | API Gateway | http://localhost:3000/api/v1 |
 | Swagger Docs | http://localhost:3000/api/docs |
 
 ---
 
-## Running with Docker
+## Demo Credentials
+
+After running seed:
+
+| Role | Email | Password |
+|------|-------|----------|
+| Platform Admin | admin@kifcover.et | Admin@kifcover2024 |
+
+---
+
+## Docker
 
 ```bash
-# Build and start everything
+# Build and start everything (postgres + all services + web)
 yarn docker:up
 
-# View logs
+# Tail logs
 yarn docker:logs
 
 # Stop
@@ -159,56 +185,16 @@ yarn docker:down
 
 ---
 
-## Service Port Map
+## Upgrading to Event-Driven (Redis/RabbitMQ)
 
-| Service | Protocol | Port |
-|---------|----------|------|
-| API Gateway | HTTP | 3000 |
-| svc-auth | TCP | 3001 |
-| svc-users | TCP | 3002 |
-| svc-products | TCP | 3003 |
-| svc-quotes | TCP | 3004 |
-| svc-policies | TCP | 3005 |
-| svc-claims | TCP | 3006 |
-| svc-payments | TCP | 3007 |
-| svc-kyc | TCP | 3008 |
-| svc-partners | TCP | 3009 |
-| svc-analytics | TCP | 3010 |
-| Web Frontend | HTTP | 4000 |
-| PostgreSQL | TCP | 5432 |
+All services use `Transport.TCP` for sync calls. The `packages/shared-events` contracts are ready for async messaging.
 
----
-
-## Deploying Individual Services
-
-Each service is independently deployable:
-
-```bash
-# Build just one service
-yarn build:claims
-
-# Deploy svc-claims independently
-docker build --build-arg SERVICE=svc-claims \
-  -f infrastructure/Dockerfile.service \
-  -t kifcover/svc-claims:latest .
-```
-
-Scale horizontally with:
-```bash
-docker compose up --scale svc-claims=3
-```
-
----
-
-## Upgrading to Redis/RabbitMQ
-
-The `packages/shared-events` contracts are ready.  
-Replace `Transport.TCP` with `Transport.REDIS` or `Transport.RMQ` in each service's `main.ts`:
+To switch a service to Redis:
 
 ```typescript
-// Before (TCP)
-transport: Transport.TCP, options: { host, port }
-
-// After (Redis)
-transport: Transport.REDIS, options: { host: 'redis', port: 6379 }
+// In any service main.ts — replace TCP with:
+transport: Transport.REDIS,
+options: { host: 'redis', port: 6379 }
 ```
+
+No business logic changes needed — only the transport layer changes.

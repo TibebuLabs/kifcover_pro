@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ClaimStatus, PolicyStatus } from '@prisma/client';
+import { ClaimStatus, PolicyStatus, UserRole } from '@prisma/client';
 
 @Injectable()
 export class AnalyticsService {
@@ -11,7 +11,7 @@ export class AnalyticsService {
       totalUsers, totalPolicies, activePolicies,
       totalClaims, pendingClaims, revenueAgg, resolvedClaims,
     ] = await Promise.all([
-      this.prisma.user.count({ where: { role: 'CUSTOMER' } }),
+      this.prisma.user.count({ where: { role: UserRole.CUSTOMER } }),
       this.prisma.policy.count(),
       this.prisma.policy.count({ where: { status: PolicyStatus.ACTIVE } }),
       this.prisma.claim.count(),

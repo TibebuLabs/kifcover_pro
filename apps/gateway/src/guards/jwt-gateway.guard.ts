@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
@@ -37,7 +37,7 @@ export class JwtGatewayGuard implements CanActivate {
       context.getClass(),
     ]);
     if (requiredRoles?.length && !requiredRoles.includes(request.user.role)) {
-      throw new UnauthorizedException('Insufficient permissions');
+      throw new ForbiddenException('Insufficient permissions — required: ' + requiredRoles.join(', '));
     }
 
     return true;

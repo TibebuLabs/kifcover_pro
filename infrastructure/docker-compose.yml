@@ -42,9 +42,9 @@ services:
     build:
       context: ..
       dockerfile: infrastructure/Dockerfile.service
-      args: { SERVICE: svc-auth }   # any service with prisma access
+      args: { SERVICE: svc-auth }
     command: >
-      sh -c "npx prisma migrate deploy --schema=./prisma/schema.prisma"
+      sh -c "npx prisma migrate deploy --schema=./packages/prisma/prisma/schema.prisma && npx prisma db seed --schema=./packages/prisma/prisma/schema.prisma"
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres:5432/kifcoverdb
     depends_on:

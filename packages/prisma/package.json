@@ -3,18 +3,26 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "generate": "prisma generate",
-    "migrate:dev": "prisma migrate dev",
-    "migrate:deploy": "prisma migrate deploy",
-    "studio": "prisma studio",
-    "seed": "ts-node seed.ts"
+    "generate":       "prisma generate --schema=./prisma/schema.prisma",
+    "migrate:dev":    "prisma migrate dev --schema=./prisma/schema.prisma",
+    "migrate:deploy": "prisma migrate deploy --schema=./prisma/schema.prisma",
+    "migrate:reset":  "prisma migrate reset --schema=./prisma/schema.prisma",
+    "studio":         "prisma studio --schema=./prisma/schema.prisma",
+    "seed":           "node seed.js"
+  },
+  "prisma": {
+    "seed": "node seed.js"
   },
   "dependencies": {
-    "@prisma/client": "^5.10.0"
+    "@prisma/client": "^5.10.0",
+    "bcryptjs": "^2.4.3"
   },
   "devDependencies": {
     "prisma": "^5.10.0",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.3.3",
-    "ts-node": "^10.9.2"
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.11.16"
   }
 }

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthController } from './auth/auth.controller';
@@ -8,9 +8,19 @@ import { AuthService } from './auth/auth.service';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'dev-secret',
-      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '7d' },
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const secret = config.get<string>('JWT_SECRET');
+        if (!secret && config.get('NODE_ENV') === 'production') {
+          throw new Error('JWT_SECRET is required in production');
+        }
+        return {
+          secret: secret || 'dev-secret-not-for-production',
+          signOptions: { expiresIn: config.get('JWT_EXPIRES_IN') || '7d' },
+        };
+      },
     }),
     PrismaModule,
   ],

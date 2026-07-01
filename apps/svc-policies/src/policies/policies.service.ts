@@ -1,11 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, Logger, InternalServerErrorException } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout, catchError, throwError } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { MSG } from '@kifcover/shared-types';
+import { PolicyStatus } from '@prisma/client';
 
 @Injectable()
 export class PoliciesService {
+  private readonly logger = new Logger(PoliciesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject('USERS_SERVICE') private readonly usersSvc: ClientProxy,
@@ -17,12 +20,24 @@ export class PoliciesService {
       where: { id: quoteId },
       include: { product: true, policy: true },
     });
-    if (!quote)          throw new NotFoundException('Quote not found');
+    if (!quote)       throw new NotFoundException('Quote not found');
     if (new Date() > quote.expiresAt) throw new BadRequestException('Quote has expired');
-    if (quote.policy)    throw new BadRequestException('Quote already converted to a policy');
+    if (quote.policy) throw new BadRequestException('Quote already converted to a policy');
 
-    // Verify KYC via users service
-    const user = await firstValueFrom(this.usersSvc.send(MSG.USER_FIND_BY_ID, { id: userId }));
+    // Verify KYC via users service — 5s timeout to avoid hanging
+    let user: { kycStatus: string } | null = null;
+    try {
+      user = await firstValueFrom(
+        this.usersSvc.send<{ kycStatus: string }>(MSG.USER_FIND_BY_ID, { id: userId }).pipe(
+          timeout(5000),
+          catchError((err) => throwError(() => new InternalServerErrorException('User service unavailable'))),
+        ),
+      );
+    } catch (err) {
+      if (err instanceof InternalServerErrorException) throw err;
+      throw new InternalServerErrorException('Failed to verify user KYC status');
+    }
+
     if (!user || user.kycStatus !== 'VERIFIED') {
       throw new BadRequestException('KYC verification required before purchasing a policy');
     }
@@ -35,7 +50,7 @@ export class PoliciesService {
       data: {
         userId, productId: quote.productId, quoteId,
         partnerId, premium: quote.premium, coverageAmount: quote.coverageAmount,
-        startDate, endDate, status: 'ACTIVE',
+        startDate, endDate, status: PolicyStatus.ACTIVE,
         qrCode: `KIF-${Date.now()}`,
       },
       include: {

@@ -27,9 +27,9 @@ CREATE TABLE "users" (
     "role" "UserRole" NOT NULL DEFAULT 'CUSTOMER',
     "kycStatus" "KycStatus" NOT NULL DEFAULT 'PENDING',
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "partnerId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "partnerId" TEXT,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );

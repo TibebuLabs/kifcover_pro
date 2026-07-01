@@ -4,6 +4,14 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  // Fail fast — don't start with a weak default secret in production
+  if (!process.env.JWT_SECRET) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET environment variable is required in production');
+    }
+    process.env.JWT_SECRET = 'dev-secret-not-for-production';
+    console.warn('⚠️  JWT_SECRET not set — using insecure default (dev only)');
+  }
   const logger = new Logger('Gateway');
   const app = await NestFactory.create(AppModule, { logger: ['error', 'warn', 'log'] });
 

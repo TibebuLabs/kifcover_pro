@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { randomBytes } from 'crypto';
+import { PolicyStatus } from '@prisma/client';
 
 @Injectable()
 export class PartnersService {
@@ -27,7 +28,7 @@ export class PartnersService {
     const [totalPolicies, revenue, activePolicies] = await Promise.all([
       this.prisma.policy.count({ where: { partnerId: id } }),
       this.prisma.policy.aggregate({ where: { partnerId: id }, _sum: { premium: true } }),
-      this.prisma.policy.count({ where: { partnerId: id, status: 'ACTIVE' } }),
+      this.prisma.policy.count({ where: { partnerId: id, status: PolicyStatus.ACTIVE } }),
     ]);
     return {
       totalPolicies,
