@@ -1,0 +1,218 @@
+version: '3.9'
+
+# ─── Shared env for all microservices ─────────────────────────────────────────
+x-svc-env: &svc-env
+  DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres:5432/kifcoverdb
+  JWT_SECRET: ${JWT_SECRET:-super-secret-change-in-prod}
+  JWT_EXPIRES_IN: 7d
+  SERVICE_HOST: localhost   # services resolve each other via Docker network
+  AUTH_SVC_PORT: 3001
+  USERS_SVC_PORT: 3002
+  PRODUCTS_SVC_PORT: 3003
+  QUOTES_SVC_PORT: 3004
+  POLICIES_SVC_PORT: 3005
+  CLAIMS_SVC_PORT: 3006
+  PAYMENTS_SVC_PORT: 3007
+  KYC_SVC_PORT: 3008
+  PARTNERS_SVC_PORT: 3009
+  ANALYTICS_SVC_PORT: 3010
+
+services:
+
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kifcoverdb
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Run migrations once at startup
+  migrate:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+      args: { SERVICE: svc-auth }   # any service with prisma access
+    command: >
+      sh -c "npx prisma migrate deploy --schema=./prisma/schema.prisma"
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres:5432/kifcoverdb
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  # ── API Gateway (single public entry point) ─────────────────────────────────
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+      args: { SERVICE: gateway }
+    environment:
+      <<: *svc-env
+      GATEWAY_PORT: 3000
+      FRONTEND_URL: http://localhost:4000
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - svc-auth
+      - svc-users
+      - svc-products
+      - svc-quotes
+      - svc-policies
+      - svc-claims
+      - svc-payments
+      - svc-kyc
+      - svc-partners
+      - svc-analytics
+    restart: unless-stopped
+
+  # ── Microservices ────────────────────────────────────────────────────────────
+
+  svc-auth:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+      args: { SERVICE: svc-auth }
+    environment:
+      <<: *svc-env
+      PORT: 3001
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  svc-users:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+      args: { SERVICE: svc-users }
+    environment:
+      <<: *svc-env
+      PORT: 3002
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  svc-products:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+      args: { SERVICE: svc-products }
+    environment:
+      <<: *svc-env
+      PORT: 3003
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  svc-quotes:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+      args: { SERVICE: svc-quotes }
+    environment:
+      <<: *svc-env
+      PORT: 3004
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  svc-policies:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+      args: { SERVICE: svc-policies }
+    environment:
+      <<: *svc-env
+      PORT: 3005
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  svc-claims:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+      args: { SERVICE: svc-claims }
+    environment:
+      <<: *svc-env
+      PORT: 3006
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  svc-payments:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+      args: { SERVICE: svc-payments }
+    environment:
+      <<: *svc-env
+      PORT: 3007
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  svc-kyc:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+      args: { SERVICE: svc-kyc }
+    environment:
+      <<: *svc-env
+      PORT: 3008
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  svc-partners:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+      args: { SERVICE: svc-partners }
+    environment:
+      <<: *svc-env
+      PORT: 3009
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  svc-analytics:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+      args: { SERVICE: svc-analytics }
+    environment:
+      <<: *svc-env
+      PORT: 3010
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  # ── Web Frontend ─────────────────────────────────────────────────────────────
+
+  web:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.web
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3000/api/v1
+    ports:
+      - "4000:4000"
+    depends_on:
+      - gateway
+    restart: unless-stopped
+
+volumes:
+  pgdata:
