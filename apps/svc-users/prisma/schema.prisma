@@ -8,13 +8,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Users service owns: profile data, KYC status, partner association
-// Credentials live in svc-auth
-
-model UserProfile {
-  id        String    @id @default(uuid()) // same ID as AuthUser in svc-auth
+// Users service owns profile data and KYC status.
+// Credentials live in svc-auth. Same UUID is shared across both DBs.
+model User {
+  id        String    @id @default(uuid())
   email     String    @unique
-  phone     String?   @unique
+  phone     String?
   firstName String
   lastName  String
   role      UserRole  @default(CUSTOMER)
@@ -26,7 +25,7 @@ model UserProfile {
 
   @@index([email])
   @@index([partnerId])
-  @@map("user_profiles")
+  @@map("users")
 }
 
 enum UserRole {

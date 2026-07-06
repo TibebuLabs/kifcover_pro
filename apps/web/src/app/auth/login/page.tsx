@@ -1,7 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -13,8 +13,8 @@ interface LoginForm {
   password: string
 }
 
-export default function LoginPage() {
-  const router = useRouter()
+function LoginForm() {
+  const searchParams = useSearchParams()
   const { setUser, setToken } = useAuthStore()
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -24,20 +24,44 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     try {
       setError('')
+
+      // ── Mock login (no backend needed) ───────────────────────────────────
+      const mocks: Record<string, any> = {
+        'admin@kifcover.et:admin123': {
+          token: 'mock-jwt-admin',
+          user: { id: 'mock-admin', email: 'admin@kifcover.et', firstName: 'Admin', lastName: 'KifCover', role: 'PLATFORM_ADMIN', kycStatus: 'VERIFIED', isActive: true },
+        },
+        'demo@kifcover.et:demo123': {
+          token: 'mock-jwt-demo',
+          user: { id: 'mock-demo', email: 'demo@kifcover.et', firstName: 'Abebe', lastName: 'Kebede', role: 'CUSTOMER', kycStatus: 'PENDING', isActive: true },
+        },
+      }
+      const mockKey = `${data.email}:${data.password}`
+      if (mocks[mockKey]) {
+        setToken(mocks[mockKey].token)
+        setUser(mocks[mockKey].user)
+        const redirect = searchParams.get('redirect') || '/dashboard'
+        // Full reload ensures cookie is present when proxy evaluates
+        window.location.href = redirect
+        return
+      }
+      // ── Real backend login ────────────────────────────────────────────────
       const res = await api.post('/auth/login', data)
-      setToken(res.data.accessToken)
-      setUser(res.data.user)
-      router.push('/dashboard')
+      const { accessToken, user } = res.data
+      setToken(accessToken)
+      setUser(user)
+      const redirect = searchParams.get('redirect') || '/dashboard'
+      window.location.href = redirect
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid email or password')
+      const msg = err.response?.data?.message
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Invalid email or password')
     }
   }
 
   return (
     <div className="min-h-screen flex">
-      {/* Left: Branding */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-primary-container overflow-hidden items-center justify-center">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary-container to-secondary opacity-90" />
+      {/* Left branding */}
+      <div className="hidden lg:flex lg:w-1/2 relative bg-primary overflow-hidden items-center justify-center">
         <div className="relative z-10 p-12 max-w-lg text-white">
           <Link href="/" className="flex items-center gap-2 mb-12">
             <span className="material-symbols-outlined text-4xl text-secondary-fixed" style={{ fontVariationSettings: "'FILL' 1" }}>
@@ -45,41 +69,18 @@ export default function LoginPage() {
             </span>
             <span className="font-display text-3xl font-bold">KifCover</span>
           </Link>
-          <h2 className="font-display text-5xl font-bold leading-tight mb-6">
+          <h2 className="font-display text-4xl font-bold leading-tight mb-6">
             Securing the future of insurance in Ethiopia.
           </h2>
-          <p className="text-on-primary/70 text-lg leading-relaxed mb-12">
+          <p className="text-white/70 text-base leading-relaxed">
             Enterprise-grade embedded insurance infrastructure for high-growth digital platforms.
           </p>
-          <div className="space-y-4">
-            {[
-              { icon: 'verified_user', title: 'Licensed InsurTech', desc: 'Fully regulated infrastructure' },
-              { icon: 'speed', title: 'Instant Issuance', desc: 'Policies issued in seconds' },
-              { icon: 'support_agent', title: '24/7 Support', desc: 'Always here when you need us' },
-            ].map((item) => (
-              <div key={item.title} className="flex items-center gap-4 bg-white/10 p-4 rounded-xl border border-white/10">
-                <div className="bg-secondary p-2 rounded-lg">
-                  <span className="material-symbols-outlined text-white text-[20px]">{item.icon}</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">{item.title}</p>
-                  <p className="text-xs text-on-primary/60">{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="absolute bottom-10 right-10 flex gap-2">
-          <div className="w-2 h-2 rounded-full bg-secondary-fixed animate-pulse" />
-          <div className="w-2 h-2 rounded-full bg-white/30" />
-          <div className="w-2 h-2 rounded-full bg-white/20" />
         </div>
       </div>
 
-      {/* Right: Form */}
+      {/* Right form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center bg-background p-8 md:p-16">
         <div className="w-full max-w-md">
-          {/* Mobile logo */}
           <Link href="/" className="lg:hidden flex items-center gap-2 mb-10">
             <span className="material-symbols-outlined text-2xl text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>shield_with_heart</span>
             <span className="font-display text-xl font-bold text-primary">KifCover</span>
@@ -87,26 +88,28 @@ export default function LoginPage() {
 
           <div className="mb-8">
             <h2 className="font-display text-3xl font-bold text-primary mb-2">Welcome back</h2>
-            <p className="text-on-surface-variant text-sm">Access your insurance dashboard and policy controls.</p>
+            <p className="text-on-surface-variant text-sm">Sign in to access your insurance dashboard.</p>
+          </div>
+
+          {/* Demo credentials */}
+          <div className="mb-5 bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 space-y-1">
+            <p className="font-bold flex items-center gap-1"><span className="material-symbols-outlined text-[15px]">info</span> Demo login</p>
+            <p><span className="font-semibold">Admin:</span> admin@kifcover.et / admin123</p>
+            <p><span className="font-semibold">Customer:</span> demo@kifcover.et / demo123</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <Input
               label="Email Address"
               type="email"
-              placeholder="name@company.com"
+              placeholder="you@example.com"
               icon="mail"
               error={errors.email?.message}
               {...register('email', { required: 'Email is required' })}
             />
 
             <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-semibold text-on-surface">Password</label>
-                <Link href="/auth/forgot-password" className="text-xs font-semibold text-primary-container hover:text-primary">
-                  Forgot Password?
-                </Link>
-              </div>
+              <label className="text-sm font-semibold text-on-surface">Password</label>
               <div className="relative">
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-[20px]">lock</span>
                 <input
@@ -136,26 +139,8 @@ export default function LoginPage() {
             )}
 
             <Button type="submit" className="w-full" size="lg" loading={isSubmitting}>
-              Sign In
-              {!isSubmitting && <span className="material-symbols-outlined text-[20px]">arrow_forward</span>}
+              {!isSubmitting && <>Sign In <span className="material-symbols-outlined text-[20px]">arrow_forward</span></>}
             </Button>
-
-            <div className="relative py-2">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border-subtle" />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="bg-background px-4 text-xs text-outline uppercase tracking-wider">or</span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="w-full flex items-center justify-center gap-3 border border-border-subtle bg-white text-on-surface py-4 rounded-xl font-semibold text-sm hover:bg-surface-container-low transition-all"
-            >
-              <span className="material-symbols-outlined text-primary">fingerprint</span>
-              Login with Biometrics
-            </button>
           </form>
 
           <p className="text-center text-sm text-on-surface-variant mt-8">
@@ -164,16 +149,16 @@ export default function LoginPage() {
               Create account
             </Link>
           </p>
-
-          <div className="flex justify-center gap-6 mt-8 pt-6 border-t border-border-subtle">
-            {['Privacy Policy', 'Terms of Service', 'Cookie Settings'].map((link) => (
-              <Link key={link} href="#" className="text-xs text-outline hover:text-primary transition-colors">
-                {link}
-              </Link>
-            ))}
-          </div>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }

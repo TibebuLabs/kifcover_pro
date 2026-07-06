@@ -40,6 +40,8 @@
     "db:migrate:docker":  "node infrastructure/migrate-all.js --docker",
     "db:seed":            "yarn workspace @kifcover/prisma seed",
     "db:studio":          "yarn workspace @kifcover/prisma studio",
+    "db:up": "docker compose -f infrastructure/docker-compose.dbs.yml up -d",
+    "db:down": "docker compose -f infrastructure/docker-compose.dbs.yml down",
     "docker:up": "docker compose -f infrastructure/docker-compose.yml up --build",
     "docker:down": "docker compose -f infrastructure/docker-compose.yml down",
     "docker:logs": "docker compose -f infrastructure/docker-compose.yml logs -f"

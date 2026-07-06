@@ -6,13 +6,6 @@ import { useAuthStore } from '@/store/authStore'
 import { api } from '@/lib/api'
 import Link from 'next/link'
 
-const kpis = [
-  { icon: 'policy', label: 'Active Policies', value: '—', change: null, color: 'text-primary', bg: 'bg-primary-container/10' },
-  { icon: 'assignment_turned_in', label: 'Open Claims', value: '—', change: null, color: 'text-secondary', bg: 'bg-secondary-container/20' },
-  { icon: 'payment', label: 'Total Premiums', value: '—', change: null, color: 'text-primary', bg: 'bg-surface-container-high' },
-  { icon: 'shield', label: 'Coverage Value', value: '—', change: null, color: 'text-primary', bg: 'bg-tertiary-container/10' },
-]
-
 const quickActions = [
   { icon: 'search', label: 'Get a Quote', href: '/marketplace', color: 'bg-primary', text: 'text-on-primary' },
   { icon: 'assignment_turned_in', label: 'File a Claim', href: '/dashboard/claims/new', color: 'bg-secondary', text: 'text-on-secondary' },

@@ -13,27 +13,26 @@ const path = require('path');
 const fs = require('fs');
 
 const isDocker = process.argv.includes('--docker');
-const PG_HOST  = isDocker ? 'postgres-{db}' : 'localhost';
-const PG_PASS  = process.env.POSTGRES_PASSWORD || 'kifcover123';
+const PG_PASS  = process.env.POSTGRES_PASSWORD || (isDocker ? 'kifcover123' : '13d2144');
 const PRISMA   = path.join(__dirname, '..', 'node_modules', '.bin', 'prisma');
 
 const services = [
-  { name: 'svc-auth',      db: 'kif_auth',      port: isDocker ? 5432 : 5432 },
-  { name: 'svc-users',     db: 'kif_users',     port: isDocker ? 5432 : 5433 },
-  { name: 'svc-products',  db: 'kif_products',  port: isDocker ? 5432 : 5434 },
-  { name: 'svc-quotes',    db: 'kif_quotes',    port: isDocker ? 5432 : 5435 },
-  { name: 'svc-policies',  db: 'kif_policies',  port: isDocker ? 5432 : 5436 },
-  { name: 'svc-claims',    db: 'kif_claims',    port: isDocker ? 5432 : 5437 },
-  { name: 'svc-payments',  db: 'kif_payments',  port: isDocker ? 5432 : 5438 },
-  { name: 'svc-kyc',       db: 'kif_kyc',       port: isDocker ? 5432 : 5439 },
-  { name: 'svc-partners',  db: 'kif_partners',  port: isDocker ? 5432 : 5440 },
-  { name: 'svc-analytics', db: 'kif_analytics', port: isDocker ? 5432 : 5441 },
+  { name: 'svc-auth',      db: 'kif_auth' },
+  { name: 'svc-users',     db: 'kif_users' },
+  { name: 'svc-products',  db: 'kif_products' },
+  { name: 'svc-quotes',    db: 'kif_quotes' },
+  { name: 'svc-policies',  db: 'kif_policies' },
+  { name: 'svc-claims',    db: 'kif_claims' },
+  { name: 'svc-payments',  db: 'kif_payments' },
+  { name: 'svc-kyc',       db: 'kif_kyc' },
+  { name: 'svc-partners',  db: 'kif_partners' },
+  { name: 'svc-analytics', db: 'kif_analytics' },
 ];
 
 let ok = 0, skipped = 0, failed = 0;
 const root = path.join(__dirname, '..');
 
-for (const { name, db, port } of services) {
+for (const { name, db } of services) {
   const schema = path.join(root, 'apps', name, 'prisma', 'schema.prisma');
   if (!fs.existsSync(schema)) {
     console.log(`⚠️  SKIP ${name} — no prisma/schema.prisma`);
@@ -42,9 +41,9 @@ for (const { name, db, port } of services) {
   }
 
   const host = isDocker ? `postgres-${name.replace('svc-', '')}` : 'localhost';
-  const url  = `postgresql://postgres:${PG_PASS}@${host}:${port}/${db}`;
+  const url  = `postgresql://postgres:${PG_PASS}@${host}:5432/${db}`;
 
-  console.log(`\n▶  ${name}  →  ${db}  (${host}:${port})`);
+  console.log(`\n▶  ${name}  →  ${db}  (${host}:5432)`);
   try {
     execSync(`"${PRISMA}" migrate deploy --schema="${schema}"`, {
       env: { ...process.env, DATABASE_URL: url },

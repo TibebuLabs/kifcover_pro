@@ -21,7 +21,7 @@ import { AnalyticsController } from './modules/analytics/analytics.controller';
 
 const makeTcpClient = (name: string, port: number) => ({
   name,
-  transport: Transport.TCP,
+  transport: Transport.TCP as Transport.TCP,
   options: { host: SERVICE_HOST, port },
 });
 
