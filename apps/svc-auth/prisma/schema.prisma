@@ -8,32 +8,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model AuthUser {
-  id           String   @id @default(uuid())
-  email        String   @unique
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  phone        String?
+  firstName    String
+  lastName     String
   passwordHash String
-  role         UserRole @default(CUSTOMER)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  role         UserRole  @default(CUSTOMER)
+  kycStatus    KycStatus @default(PENDING)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  refreshTokens RefreshToken[]
-
-  @@map("auth_users")
-}
-
-model RefreshToken {
-  id        String   @id @default(uuid())
-  userId    String
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([token])
-  @@map("refresh_tokens")
+  @@map("users")
 }
 
 enum UserRole {
@@ -41,4 +29,11 @@ enum UserRole {
   PARTNER_ADMIN
   PLATFORM_ADMIN
   INSURANCE_PROVIDER
+}
+
+enum KycStatus {
+  PENDING
+  IN_PROGRESS
+  VERIFIED
+  REJECTED
 }

@@ -27,7 +27,11 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       setUser: (user) => set({ user }),
       setToken: (token) => {
-        Cookies.set('kif_token', token, { expires: 7, secure: true, sameSite: 'strict' })
+        Cookies.set('kif_token', token, {
+          expires: 7,
+          secure: false,
+          sameSite: 'lax',
+        })
         set({ token })
       },
       logout: () => {

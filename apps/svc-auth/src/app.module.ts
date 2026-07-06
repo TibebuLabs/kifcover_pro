@@ -11,16 +11,10 @@ import { AuthService } from './auth/auth.service';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        const secret = config.get<string>('JWT_SECRET');
-        if (!secret && config.get('NODE_ENV') === 'production') {
-          throw new Error('JWT_SECRET is required in production');
-        }
-        return {
-          secret: secret || 'dev-secret-not-for-production',
-          signOptions: { expiresIn: config.get('JWT_EXPIRES_IN') || '7d' },
-        };
-      },
+      useFactory: (config: ConfigService) => ({
+        secret: config.get('JWT_SECRET') || 'dev-secret-not-for-production',
+        signOptions: { expiresIn: config.get('JWT_EXPIRES_IN') || '7d' },
+      }),
     }),
     PrismaModule,
   ],

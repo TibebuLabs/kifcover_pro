@@ -1,27 +1,27 @@
 {
-  "name": "@kifcover/svc-payments",
-  "version": "1.0.0",
-  "scripts": {
-    "build": "nest build",
-    "start": "node dist/main",
-    "start:dev": "nest start --watch"
-  },
-  "dependencies": {
-    "@kifcover/shared-types": "*",
-    "@nestjs/common": "^10.3.0",
-    "@nestjs/config": "^4.0.4",
-    "@nestjs/core": "^11.1.27",
-    "@nestjs/microservices": "^11.1.27",
-    "@nestjs/platform-express": "11.1.27",
-    "@nestjs/swagger": "11.4.5",
-    "@prisma/client": "^5.10.0",
-    "next": "16.2.9",
-    "reflect-metadata": "^0.2.1",
-    "rxjs": "^7.8.1"
-  },
-  "devDependencies": {
-    "@nestjs/cli": "^11.0.23",
-    "prisma": "^5.10.0",
-    "typescript": "^5.3.3"
-  }
+    "name":  "@kifcover/svc-payments",
+    "version":  "1.0.0",
+    "scripts":  {
+                    "build":  "nest build",
+                    "start":  "node dist/main",
+                    "start:dev":  "nest start --watch"
+                },
+    "dependencies":  {
+                         "@kifcover/shared-types":  "*",
+                         "@nestjs/common":  "^10.3.0",
+                         "@nestjs/config":  "^4.0.4",
+                         "@nestjs/core":  "^11.1.27",
+                         "@nestjs/microservices":  "^11.1.27",
+                         "@nestjs/platform-express":  "11.1.27",
+                         "@nestjs/swagger":  "11.4.5",
+                         "@prisma/client":  "^5.10.0",
+                         "next":  "16.2.9",
+                         "reflect-metadata":  "^0.2.1",
+                         "rxjs":  "^7.8.1"
+                     },
+    "devDependencies":  {
+                            "@nestjs/cli":  "^11.0.23",
+                            "prisma":  "^5.10.0",
+                            "typescript":  "^5.3.3"
+                        }
 }

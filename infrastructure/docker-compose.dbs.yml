@@ -1,0 +1,91 @@
+version: '3.9'
+
+x-pg-healthcheck: &pg-healthcheck
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U postgres"]
+    interval: 5s
+    timeout: 5s
+    retries: 10
+
+services:
+  postgres-auth:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_auth, POSTGRES_USER: postgres, POSTGRES_PASSWORD: kifcover123 }
+    volumes: [pgdata-auth:/var/lib/postgresql/data]
+    ports: ["5432:5432"]
+
+  postgres-users:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_users, POSTGRES_USER: postgres, POSTGRES_PASSWORD: kifcover123 }
+    volumes: [pgdata-users:/var/lib/postgresql/data]
+    ports: ["5433:5432"]
+
+  postgres-products:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_products, POSTGRES_USER: postgres, POSTGRES_PASSWORD: kifcover123 }
+    volumes: [pgdata-products:/var/lib/postgresql/data]
+    ports: ["5434:5432"]
+
+  postgres-quotes:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_quotes, POSTGRES_USER: postgres, POSTGRES_PASSWORD: kifcover123 }
+    volumes: [pgdata-quotes:/var/lib/postgresql/data]
+    ports: ["5435:5432"]
+
+  postgres-policies:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_policies, POSTGRES_USER: postgres, POSTGRES_PASSWORD: kifcover123 }
+    volumes: [pgdata-policies:/var/lib/postgresql/data]
+    ports: ["5436:5432"]
+
+  postgres-claims:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_claims, POSTGRES_USER: postgres, POSTGRES_PASSWORD: kifcover123 }
+    volumes: [pgdata-claims:/var/lib/postgresql/data]
+    ports: ["5437:5432"]
+
+  postgres-payments:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_payments, POSTGRES_USER: postgres, POSTGRES_PASSWORD: kifcover123 }
+    volumes: [pgdata-payments:/var/lib/postgresql/data]
+    ports: ["5438:5432"]
+
+  postgres-kyc:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_kyc, POSTGRES_USER: postgres, POSTGRES_PASSWORD: kifcover123 }
+    volumes: [pgdata-kyc:/var/lib/postgresql/data]
+    ports: ["5439:5432"]
+
+  postgres-partners:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_partners, POSTGRES_USER: postgres, POSTGRES_PASSWORD: kifcover123 }
+    volumes: [pgdata-partners:/var/lib/postgresql/data]
+    ports: ["5440:5432"]
+
+  postgres-analytics:
+    image: postgres:16-alpine
+    <<: *pg-healthcheck
+    environment: { POSTGRES_DB: kif_analytics, POSTGRES_USER: postgres, POSTGRES_PASSWORD: kifcover123 }
+    volumes: [pgdata-analytics:/var/lib/postgresql/data]
+    ports: ["5441:5432"]
+
+volumes:
+  pgdata-auth:
+  pgdata-users:
+  pgdata-products:
+  pgdata-quotes:
+  pgdata-policies:
+  pgdata-claims:
+  pgdata-payments:
+  pgdata-kyc:
+  pgdata-partners:
+  pgdata-analytics:

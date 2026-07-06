@@ -14,6 +14,14 @@ export class GatewayExceptionFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | string[] = 'Internal server error';
 
+    // TCP connection failure — microservice is unreachable
+    if ((exception as any)?.constructor?.name === 'AggregateError' || (exception as any)?.code === 'ECONNREFUSED') {
+      status = HttpStatus.SERVICE_UNAVAILABLE;
+      message = 'Service temporarily unavailable. Please try again later.';
+      this.logger.error(`${req.method} ${req.url} → 503 (service unreachable)`, String(exception));
+      return res.status(status).json({ statusCode: status, message, path: req.url, timestamp: new Date().toISOString() });
+    }
+
     if (exception instanceof RpcException) {
       const err = exception.getError() as any;
       status = err?.statusCode || HttpStatus.BAD_REQUEST;
