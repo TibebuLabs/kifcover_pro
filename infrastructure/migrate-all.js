@@ -1,63 +1,66 @@
 #!/usr/bin/env node
 /**
- * Runs `prisma migrate deploy` for every microservice against its own DB.
- * Uses migrate deploy (non-interactive) — safe for CI/CD and automation.
+ * KifCover Pro — Single-DB Migration Runner
  *
- * Usage (local):  node infrastructure/migrate-all.js
- * Usage (Docker): node infrastructure/migrate-all.js --docker
+ * All 5 services share ONE PostgreSQL database: kifdb
+ * Each service has its own prisma/schema.prisma pointing to the same DB.
  *
- * With --docker flag, hostnames use Docker service names (postgres-auth etc.)
+ * Usage:
+ *   node infrastructure/migrate-all.js            # local dev
+ *   node infrastructure/migrate-all.js --docker   # inside Docker
  */
 const { execSync } = require('child_process');
 const path = require('path');
-const fs = require('fs');
+const fs   = require('fs');
 
 const isDocker = process.argv.includes('--docker');
-const PG_PASS  = process.env.POSTGRES_PASSWORD || (isDocker ? 'kifcover123' : '13d2144');
+const PG_PASS  = process.env.POSTGRES_PASSWORD || 'kifcover123';
+const PG_USER  = process.env.POSTGRES_USER     || 'postgres';
+const HOST     = isDocker ? 'postgres' : 'localhost';
+const PORT     = process.env.POSTGRES_PORT || 5432;
+const DB       = 'kifdb';
 const PRISMA   = path.join(__dirname, '..', 'node_modules', '.bin', 'prisma');
 
+const DATABASE_URL = `postgresql://${PG_USER}:${PG_PASS}@${HOST}:${PORT}/${DB}`;
+
+// The 5 services, each with a separate Prisma schema that all target kifdb
 const services = [
-  { name: 'svc-auth',      db: 'kif_auth' },
-  { name: 'svc-users',     db: 'kif_users' },
-  { name: 'svc-products',  db: 'kif_products' },
-  { name: 'svc-quotes',    db: 'kif_quotes' },
-  { name: 'svc-policies',  db: 'kif_policies' },
-  { name: 'svc-claims',    db: 'kif_claims' },
-  { name: 'svc-payments',  db: 'kif_payments' },
-  { name: 'svc-kyc',       db: 'kif_kyc' },
-  { name: 'svc-partners',  db: 'kif_partners' },
-  { name: 'svc-analytics', db: 'kif_analytics' },
+  'svc-auth',
+  'svc-customer',
+  'svc-insurer',
+  'svc-partner',
+  'svc-admin',
 ];
 
 let ok = 0, skipped = 0, failed = 0;
 const root = path.join(__dirname, '..');
 
-for (const { name, db } of services) {
+console.log(`\n🔄  KifCover DB Migration — target: ${DB} @ ${HOST}:${PORT}\n`);
+
+for (const name of services) {
   const schema = path.join(root, 'apps', name, 'prisma', 'schema.prisma');
+
   if (!fs.existsSync(schema)) {
-    console.log(`⚠️  SKIP ${name} — no prisma/schema.prisma`);
+    console.log(`⚠️  SKIP ${name} — prisma/schema.prisma not found`);
     skipped++;
     continue;
   }
 
-  const host = isDocker ? `postgres-${name.replace('svc-', '')}` : 'localhost';
-  const url  = `postgresql://postgres:${PG_PASS}@${host}:5432/${db}`;
-
-  console.log(`\n▶  ${name}  →  ${db}  (${host}:5432)`);
+  console.log(`▶  ${name}  →  ${DB}`);
   try {
     execSync(`"${PRISMA}" migrate deploy --schema="${schema}"`, {
-      env: { ...process.env, DATABASE_URL: url },
+      env: { ...process.env, DATABASE_URL },
       stdio: 'inherit',
     });
-    console.log(`✅  ${name}`);
+    console.log(`✅  ${name}\n`);
     ok++;
   } catch {
-    console.error(`❌  ${name} FAILED`);
+    console.error(`❌  ${name} FAILED\n`);
     failed++;
   }
 }
 
-console.log(`\n═══════════════════════════════════════`);
-console.log(`  Migrations: ${ok} ok  |  ${skipped} skipped  |  ${failed} failed`);
-console.log(`═══════════════════════════════════════`);
+console.log('═'.repeat(50));
+console.log(`  Results: ${ok} ok  |  ${skipped} skipped  |  ${failed} failed`);
+console.log('═'.repeat(50));
 if (failed > 0) process.exit(1);

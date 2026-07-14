@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/svc-admin-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Immutable audit trail — every action across the platform
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  userEmail  String?
+  userRole   String?
+  service    String   // which service generated this event
+  action     String   // e.g. "POLICY_ISSUED", "CLAIM_APPROVED"
+  resource   String   // e.g. "policy", "claim", "user"
+  resourceId String?
+  oldValues  Json?
+  newValues  Json?
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([service])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// Daily platform KPI snapshots
+model DailySnapshot {
+  id                  String   @id @default(uuid())
+  date                DateTime @unique
+  totalUsers          Int      @default(0)
+  newUsers            Int      @default(0)
+  totalPolicies       Int      @default(0)
+  newPolicies         Int      @default(0)
+  activePolicies      Int      @default(0)
+  totalClaims         Int      @default(0)
+  newClaims           Int      @default(0)
+  pendingClaims       Int      @default(0)
+  grossWrittenPremium Float    @default(0)
+  totalPayments       Float    @default(0)
+  claimsRatio         Float    @default(0)
+  createdAt           DateTime @default(now())
+
+  @@index([date])
+  @@map("daily_snapshots")
+}
+
+// AML / compliance flags
+model ComplianceFlag {
+  id          String       @id @default(uuid())
+  userId      String?
+  resourceId  String?
+  resource    String       // "payment", "policy", "claim"
+  reason      String
+  severity    FlagSeverity @default(MEDIUM)
+  status      FlagStatus   @default(OPEN)
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  notes       String?
+  createdAt   DateTime     @default(now())
+
+  @@index([userId])
+  @@index([status])
+  @@index([severity])
+  @@map("compliance_flags")
+}
+
+// System settings (key-value)
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+enum FlagSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FlagStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}

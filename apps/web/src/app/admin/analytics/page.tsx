@@ -21,7 +21,7 @@ export default function AdminAnalyticsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.get('/analytics/overview')
+    api.get('/admin/overview')
       .then((res) => setOverview(res.data))
       .catch(() => setOverview({
         totalUsers: 1248, totalPolicies: 4520, activePolicies: 3890,

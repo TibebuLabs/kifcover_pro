@@ -1,19 +1,16 @@
 version: '3.9'
 
-# ─── Shared base env for all microservices ────────────────────────────────────
-x-svc-common: &svc-common
-  restart: unless-stopped
-  depends_on:
-    postgres-auth:     { condition: service_healthy }
-    postgres-users:    { condition: service_healthy }
-    postgres-products: { condition: service_healthy }
-    postgres-quotes:   { condition: service_healthy }
-    postgres-policies: { condition: service_healthy }
-    postgres-claims:   { condition: service_healthy }
-    postgres-payments: { condition: service_healthy }
-    postgres-kyc:      { condition: service_healthy }
-    postgres-partners: { condition: service_healthy }
-    postgres-analytics:{ condition: service_healthy }
+# ─── KifCover Pro — Single DB, 5 Services ────────────────────────────────────
+#
+#  All services share: kifdb (PostgreSQL 16)
+#
+#  svc-auth     (3001) — auth, OTP, JWT
+#  svc-customer (3002) — users, KYC, quotes, policies, claims, payments
+#  svc-insurer  (3003) — products, pricing rules
+#  svc-partner  (3004) — partners, payouts, commissions
+#  svc-admin    (3005) — audit logs, analytics, compliance
+#
+# ─────────────────────────────────────────────────────────────────────────────
 
 x-pg-healthcheck: &pg-healthcheck
   healthcheck:
@@ -22,249 +19,129 @@ x-pg-healthcheck: &pg-healthcheck
     timeout: 5s
     retries: 10
 
-x-gateway-env: &gateway-env
-  JWT_SECRET: ${JWT_SECRET:-super-secret-change-in-prod}
-  JWT_EXPIRES_IN: 7d
-  SERVICE_HOST: localhost
-  GATEWAY_PORT: 3000
-  PORT: 3000
-  AUTH_SVC_PORT: 3001
-  USERS_SVC_PORT: 3002
-  PRODUCTS_SVC_PORT: 3003
-  QUOTES_SVC_PORT: 3004
-  POLICIES_SVC_PORT: 3005
-  CLAIMS_SVC_PORT: 3006
-  PAYMENTS_SVC_PORT: 3007
-  KYC_SVC_PORT: 3008
-  PARTNERS_SVC_PORT: 3009
-  ANALYTICS_SVC_PORT: 3010
-  FRONTEND_URL: http://localhost:4000
+x-restart: &restart
+  restart: unless-stopped
+
+x-db-env: &db-env
+  DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres:5432/kifdb
+
+x-svc-common: &svc-common
+  build:
+    context: ..
+    dockerfile: infrastructure/Dockerfile.service
+  depends_on:
+    postgres: { condition: service_healthy }
+  <<: *restart
 
 services:
 
-  # ── 10 Postgres instances (one per service) ──────────────────────────────────
-
-  postgres-auth:
+  # ── Database ──────────────────────────────────────────────────────────────
+  postgres:
     image: postgres:16-alpine
     <<: *pg-healthcheck
-    environment: { POSTGRES_DB: kif_auth, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
-    volumes: [pgdata-auth:/var/lib/postgresql/data]
+    environment:
+      POSTGRES_DB:       kifdb
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123}
+    volumes: [pgdata:/var/lib/postgresql/data]
     ports: ["5432:5432"]
+    <<: *restart
 
-  postgres-users:
-    image: postgres:16-alpine
-    <<: *pg-healthcheck
-    environment: { POSTGRES_DB: kif_users, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
-    volumes: [pgdata-users:/var/lib/postgresql/data]
-    ports: ["5433:5432"]
-
-  postgres-products:
-    image: postgres:16-alpine
-    <<: *pg-healthcheck
-    environment: { POSTGRES_DB: kif_products, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
-    volumes: [pgdata-products:/var/lib/postgresql/data]
-    ports: ["5434:5432"]
-
-  postgres-quotes:
-    image: postgres:16-alpine
-    <<: *pg-healthcheck
-    environment: { POSTGRES_DB: kif_quotes, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
-    volumes: [pgdata-quotes:/var/lib/postgresql/data]
-    ports: ["5435:5432"]
-
-  postgres-policies:
-    image: postgres:16-alpine
-    <<: *pg-healthcheck
-    environment: { POSTGRES_DB: kif_policies, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
-    volumes: [pgdata-policies:/var/lib/postgresql/data]
-    ports: ["5436:5432"]
-
-  postgres-claims:
-    image: postgres:16-alpine
-    <<: *pg-healthcheck
-    environment: { POSTGRES_DB: kif_claims, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
-    volumes: [pgdata-claims:/var/lib/postgresql/data]
-    ports: ["5437:5432"]
-
-  postgres-payments:
-    image: postgres:16-alpine
-    <<: *pg-healthcheck
-    environment: { POSTGRES_DB: kif_payments, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
-    volumes: [pgdata-payments:/var/lib/postgresql/data]
-    ports: ["5438:5432"]
-
-  postgres-kyc:
-    image: postgres:16-alpine
-    <<: *pg-healthcheck
-    environment: { POSTGRES_DB: kif_kyc, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
-    volumes: [pgdata-kyc:/var/lib/postgresql/data]
-    ports: ["5439:5432"]
-
-  postgres-partners:
-    image: postgres:16-alpine
-    <<: *pg-healthcheck
-    environment: { POSTGRES_DB: kif_partners, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
-    volumes: [pgdata-partners:/var/lib/postgresql/data]
-    ports: ["5440:5432"]
-
-  postgres-analytics:
-    image: postgres:16-alpine
-    <<: *pg-healthcheck
-    environment: { POSTGRES_DB: kif_analytics, POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kifcover123} }
-    volumes: [pgdata-analytics:/var/lib/postgresql/data]
-    ports: ["5441:5432"]
-
-  # ── API Gateway ────────────────────────────────────────────────────────────
-
+  # ── API Gateway ───────────────────────────────────────────────────────────
   gateway:
+    <<: *svc-common
     build:
       context: ..
       dockerfile: infrastructure/Dockerfile.service
       args: { SERVICE: gateway }
     environment:
-      <<: *gateway-env
+      JWT_SECRET:       ${JWT_SECRET:-super-secret-change-in-prod}
+      JWT_EXPIRES_IN:   7d
+      GATEWAY_PORT:     3000
+      PORT:             3000
+      SERVICE_HOST:     localhost
+      AUTH_SVC_PORT:    3001
+      CUSTOMER_SVC_PORT: 3002
+      INSURER_SVC_PORT:  3003
+      PARTNER_SVC_PORT:  3004
+      ADMIN_SVC_PORT:    3005
+      FRONTEND_URL:     http://localhost:4000
     ports: ["3000:3000"]
     depends_on:
       - svc-auth
-      - svc-users
-      - svc-products
-      - svc-quotes
-      - svc-policies
-      - svc-claims
-      - svc-payments
-      - svc-kyc
-      - svc-partners
-      - svc-analytics
-    restart: unless-stopped
+      - svc-customer
+      - svc-insurer
+      - svc-partner
+      - svc-admin
 
-  # ── Microservices ──────────────────────────────────────────────────────────
-
+  # ── svc-auth ──────────────────────────────────────────────────────────────
   svc-auth:
+    <<: *svc-common
     build:
       context: ..
       dockerfile: infrastructure/Dockerfile.service
       args: { SERVICE: svc-auth }
     environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-auth:5432/kif_auth
-      JWT_SECRET: ${JWT_SECRET:-super-secret-change-in-prod}
+      <<: *db-env
+      JWT_SECRET:     ${JWT_SECRET:-super-secret-change-in-prod}
       JWT_EXPIRES_IN: 7d
-      PORT: 3001
-    depends_on:
-      postgres-auth: { condition: service_healthy }
-    restart: unless-stopped
+      PORT:           3001
+      NODE_ENV:       production
 
-  svc-users:
+  # ── svc-customer ──────────────────────────────────────────────────────────
+  svc-customer:
+    <<: *svc-common
     build:
       context: ..
       dockerfile: infrastructure/Dockerfile.service
-      args: { SERVICE: svc-users }
+      args: { SERVICE: svc-customer }
     environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-users:5432/kif_users
-      PORT: 3002
-    depends_on:
-      postgres-users: { condition: service_healthy }
-    restart: unless-stopped
+      <<: *db-env
+      PORT:             3002
+      SERVICE_HOST:     localhost
+      INSURER_SVC_PORT: 3003
+      PARTNER_SVC_PORT: 3004
 
-  svc-products:
+  # ── svc-insurer ───────────────────────────────────────────────────────────
+  svc-insurer:
+    <<: *svc-common
     build:
       context: ..
       dockerfile: infrastructure/Dockerfile.service
-      args: { SERVICE: svc-products }
+      args: { SERVICE: svc-insurer }
     environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-products:5432/kif_products
+      <<: *db-env
       PORT: 3003
-    depends_on:
-      postgres-products: { condition: service_healthy }
-    restart: unless-stopped
 
-  svc-quotes:
+  # ── svc-partner ───────────────────────────────────────────────────────────
+  svc-partner:
+    <<: *svc-common
     build:
       context: ..
       dockerfile: infrastructure/Dockerfile.service
-      args: { SERVICE: svc-quotes }
+      args: { SERVICE: svc-partner }
     environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-quotes:5432/kif_quotes
-      PORT: 3004
-    depends_on:
-      postgres-quotes: { condition: service_healthy }
-    restart: unless-stopped
+      <<: *db-env
+      PORT:              3004
+      SERVICE_HOST:      localhost
+      CUSTOMER_SVC_PORT: 3002
 
-  svc-policies:
+  # ── svc-admin ─────────────────────────────────────────────────────────────
+  svc-admin:
+    <<: *svc-common
     build:
       context: ..
       dockerfile: infrastructure/Dockerfile.service
-      args: { SERVICE: svc-policies }
+      args: { SERVICE: svc-admin }
     environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-policies:5432/kif_policies
-      PORT: 3005
-      USERS_SVC_PORT: 3002
-      SERVICE_HOST: localhost
-    depends_on:
-      postgres-policies: { condition: service_healthy }
-    restart: unless-stopped
+      <<: *db-env
+      PORT:              3005
+      SERVICE_HOST:      localhost
+      CUSTOMER_SVC_PORT: 3002
+      PARTNER_SVC_PORT:  3004
+      INSURER_SVC_PORT:  3003
 
-  svc-claims:
-    build:
-      context: ..
-      dockerfile: infrastructure/Dockerfile.service
-      args: { SERVICE: svc-claims }
-    environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-claims:5432/kif_claims
-      PORT: 3006
-    depends_on:
-      postgres-claims: { condition: service_healthy }
-    restart: unless-stopped
-
-  svc-payments:
-    build:
-      context: ..
-      dockerfile: infrastructure/Dockerfile.service
-      args: { SERVICE: svc-payments }
-    environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-payments:5432/kif_payments
-      PORT: 3007
-    depends_on:
-      postgres-payments: { condition: service_healthy }
-    restart: unless-stopped
-
-  svc-kyc:
-    build:
-      context: ..
-      dockerfile: infrastructure/Dockerfile.service
-      args: { SERVICE: svc-kyc }
-    environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-kyc:5432/kif_kyc
-      PORT: 3008
-    depends_on:
-      postgres-kyc: { condition: service_healthy }
-    restart: unless-stopped
-
-  svc-partners:
-    build:
-      context: ..
-      dockerfile: infrastructure/Dockerfile.service
-      args: { SERVICE: svc-partners }
-    environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-partners:5432/kif_partners
-      PORT: 3009
-    depends_on:
-      postgres-partners: { condition: service_healthy }
-    restart: unless-stopped
-
-  svc-analytics:
-    build:
-      context: ..
-      dockerfile: infrastructure/Dockerfile.service
-      args: { SERVICE: svc-analytics }
-    environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-kifcover123}@postgres-analytics:5432/kif_analytics
-      PORT: 3010
-    depends_on:
-      postgres-analytics: { condition: service_healthy }
-    restart: unless-stopped
-
-  # ── Web Frontend ───────────────────────────────────────────────────────────
-
+  # ── Web frontend ──────────────────────────────────────────────────────────
   web:
     build:
       context: ..
@@ -273,16 +150,7 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:3000/api/v1
     ports: ["4000:4000"]
     depends_on: [gateway]
-    restart: unless-stopped
+    <<: *restart
 
 volumes:
-  pgdata-auth:
-  pgdata-users:
-  pgdata-products:
-  pgdata-quotes:
-  pgdata-policies:
-  pgdata-claims:
-  pgdata-payments:
-  pgdata-kyc:
-  pgdata-partners:
-  pgdata-analytics:
+  pgdata:

@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/svc-insurer-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model InsuranceProduct {
+  id             String          @id @default(uuid())
+  name           String
+  slug           String          @unique @default(uuid())
+  description    String
+  descriptionAm  String?         // Amharic description (PRD: i18n)
+  category       ProductCategory
+  basePrice      Float
+  coverageAmount Float
+  durationDays   Int
+  features       Json            @default("[]")
+  exclusions     Json            @default("[]")
+  termsUrl       String?
+  status         ProductStatus   @default(DRAFT)
+  isActive       Boolean         @default(false)
+  insurerId      String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  pricingRules    PricingRule[]
+  premiumTiers    PremiumTier[]
+  underwritingRules UnderwritingRule[]
+
+  @@index([category])
+  @@index([status])
+  @@index([insurerId])
+  @@map("insurance_products")
+}
+
+// Dynamic pricing tiers (PRD: ProductPremiumTable)
+model PremiumTier {
+  id             String  @id @default(uuid())
+  productId      String
+  label          String  // e.g. "Basic", "Standard", "Premium"
+  minAge         Int?
+  maxAge         Int?
+  sumInsuredMin  Float?
+  sumInsuredMax  Float?
+  premium        Float
+  product        InsuranceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("premium_tiers")
+}
+
+// Risk-adjustment multiplier rules
+model PricingRule {
+  id         String   @id @default(uuid())
+  productId  String
+  ruleKey    String   // e.g. "vehicleAge", "preExistingCondition"
+  operator   String   // "gt", "lt", "eq", "bool"
+  value      String
+  multiplier Float
+  createdAt  DateTime @default(now())
+
+  product InsuranceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("pricing_rules")
+}
+
+// Underwriting rules per product
+model UnderwritingRule {
+  id          String @id @default(uuid())
+  productId   String
+  ruleKey     String
+  ruleValue   String
+  description String?
+
+  product InsuranceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("underwriting_rules")
+}
+
+enum ProductCategory {
+  AUTO
+  HEALTH
+  TRAVEL
+  GADGET
+  LIFE
+  AGRICULTURE
+  SME
+}
+
+enum ProductStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  SUSPENDED
+}

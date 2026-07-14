@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/svc-customer-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// svc-customer shares the users table with svc-auth (no passwordHash access needed)
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  phone        String?
+  firstName    String
+  lastName     String
+  passwordHash String
+  role         UserRole   @default(CUSTOMER)
+  kycStatus    KycStatus  @default(PENDING)
+  isActive     Boolean    @default(true)
+  partnerId    String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  kycRecord    KycRecord?
+
+  @@index([email])
+  @@index([role])
+  @@index([partnerId])
+  @@map("users")
+}
+
+model KycRecord {
+  id        String    @id @default(uuid())
+  userId    String    @unique
+  status    KycStatus @default(PENDING)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User         @relation(fields: [userId], references: [id])
+  documents KycDocument[]
+
+  @@map("kyc_records")
+}
+
+model KycDocument {
+  id          String    @id @default(uuid())
+  userId      String
+  type        DocType
+  fileUrl     String
+  status      DocStatus @default(PENDING)
+  ocrData     Json?
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  kycRecord   KycRecord? @relation(fields: [userId], references: [userId])
+
+  @@index([userId])
+  @@map("kyc_documents")
+}
+
+model Quote {
+  id             String    @id @default(uuid())
+  userId         String?
+  productId      String
+  productName    String
+  premium        Float
+  coverageAmount Float
+  durationDays   Int
+  metadata       Json      @default("{}")
+  expiresAt      DateTime
+  convertedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("quotes")
+}
+
+model Policy {
+  id             String       @id @default(uuid())
+  policyNumber   String       @unique @default(uuid())
+  userId         String
+  productId      String
+  productName    String
+  partnerId      String?
+  quoteId        String?      @unique
+  status         PolicyStatus @default(PENDING)
+  premium        Float
+  coverageAmount Float
+  startDate      DateTime
+  endDate        DateTime
+  qrCode         String?
+  metadata       Json         @default("{}")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([partnerId])
+  @@index([status])
+  @@map("policies")
+}
+
+model Claim {
+  id             String      @id @default(uuid())
+  claimNumber    String      @unique @default(uuid())
+  userId         String
+  policyId       String
+  policyNumber   String
+  status         ClaimStatus @default(SUBMITTED)
+  description    String
+  incidentDate   DateTime
+  claimAmount    Float
+  approvedAmount Float?
+  documents      Json        @default("[]")
+  adminNotes     String?
+  resolvedAt     DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([policyId])
+  @@index([status])
+  @@map("claims")
+}
+
+model Payment {
+  id           String          @id @default(uuid())
+  policyId     String?
+  claimId      String?
+  userId       String
+  amount       Float
+  currency     String          @default("ETB")
+  status       PaymentStatus   @default(PENDING)
+  provider     PaymentProvider
+  providerRef  String?
+  checkoutUrl  String?
+  metadata     Json            @default("{}")
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([policyId])
+  @@index([userId])
+  @@index([status])
+  @@map("payments")
+}
+
+enum UserRole {
+  CUSTOMER
+  PARTNER_ADMIN
+  PLATFORM_ADMIN
+  INSURANCE_PROVIDER
+}
+
+enum KycStatus {
+  PENDING
+  IN_PROGRESS
+  VERIFIED
+  REJECTED
+}
+
+enum DocType {
+  NATIONAL_ID
+  SELFIE
+  ADDRESS_PROOF
+  PASSPORT
+}
+
+enum DocStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum PolicyStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum ClaimStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  TELEBIRR
+  BANK
+  CARD
+}

@@ -11,9 +11,9 @@ import { AuthService } from './auth/auth.service';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get('JWT_SECRET') || 'dev-secret-not-for-production',
-        signOptions: { expiresIn: config.get('JWT_EXPIRES_IN') || '7d' },
+      useFactory: (cfg: ConfigService) => ({
+        secret: cfg.get('JWT_SECRET') || 'dev-secret-not-for-production',
+        signOptions: { expiresIn: cfg.get('JWT_EXPIRES_IN') || '7d' },
       }),
     }),
     PrismaModule,

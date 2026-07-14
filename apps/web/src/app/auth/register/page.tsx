@@ -3,46 +3,51 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
-import { api } from '@/lib/api'
+import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 
-interface RegisterForm {
-  firstName: string
-  lastName: string
-  email: string
-  phone?: string
-  password: string
-  confirmPassword: string
-}
+const registerSchema = z.object({
+  firstName: z.string().min(2, 'At least 2 characters'),
+  lastName: z.string().min(2, 'At least 2 characters'),
+  email: z.string().email('Invalid email'),
+  phone: z.string().optional(),
+  password: z.string().min(8, 'At least 8 characters'),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+})
+
+type RegisterForm = z.infer<typeof registerSchema>
 
 export default function RegisterPage() {
   const router = useRouter()
   const { setUser, setToken } = useAuthStore()
   const [error, setError] = useState('')
 
-  const { register, handleSubmit, watch, formState: { isSubmitting, errors } } = useForm<RegisterForm>()
+  const { register, handleSubmit, watch, formState: { isSubmitting, errors } } = useForm<RegisterForm>({
+    resolver: zodResolver(registerSchema),
+  })
   const password = watch('password')
 
   const onSubmit = async (data: RegisterForm) => {
-    if (data.password !== data.confirmPassword) {
-      setError('Passwords do not match')
-      return
-    }
     try {
       setError('')
-      const res = await api.post('/auth/register', {
+      const res = await authApi.register({
         firstName: data.firstName,
-        lastName:  data.lastName,
-        email:     data.email,
-        phone:     data.phone || undefined,
-        password:  data.password,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone || undefined,
+        password: data.password,
       })
       const { accessToken, user } = res.data
       setToken(accessToken)
       setUser(user)
-      router.push('/dashboard')
+      router.push('/kyc')
     } catch (err: any) {
       const msg = err.response?.data?.message
       setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Registration failed. Please try again.')
@@ -50,34 +55,63 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background-main px-4 py-12">
-      <div className="w-full max-w-lg">
-        <div className="text-center mb-10">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
+    <div className="min-h-screen flex">
+      {/* Left branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-primary relative overflow-hidden items-center justify-center">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,rgba(255,255,255,0.08),transparent_60%)]" />
+        <div className="relative z-10 text-on-primary px-16 max-w-lg">
+          <div className="flex items-center gap-3 mb-12">
+            <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+              shield_with_heart
+            </span>
+            <span className="font-display text-3xl font-bold">KifCover</span>
+          </div>
+          <h1 className="font-display text-4xl font-bold leading-tight mb-4">
+            Join thousands protecting what matters most
+          </h1>
+          <p className="text-on-primary/80 text-lg leading-relaxed mb-12">
+            Create your free account and get covered in under 3 minutes. Choose from 50+ insurance products.
+          </p>
+          <div className="flex items-center gap-6 text-sm text-on-primary/70">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px]">verified_user</span>
+              <span>Licensed by NBE</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px]">lock</span>
+              <span>256-bit encryption</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center px-8 py-12 bg-background-main">
+        <div className="w-full max-w-md">
+          <Link href="/" className="inline-flex items-center gap-2 mb-8 lg:hidden">
             <span className="material-symbols-outlined text-3xl text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>
               shield_with_heart
             </span>
             <span className="font-display text-2xl font-bold text-primary">KifCover</span>
           </Link>
-          <h2 className="font-display text-3xl font-bold text-primary mb-2">Create your account</h2>
-          <p className="text-on-surface-variant text-sm">Join thousands of Ethiopians protecting what matters most.</p>
-        </div>
 
-        <div className="bg-white rounded-3xl border border-border-subtle shadow-card p-8">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          <h2 className="font-display text-3xl font-bold text-primary mb-2">Create your account</h2>
+          <p className="text-on-surface-variant text-sm mb-8">Fill in your details to get started.</p>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="First Name"
                 placeholder="Abebe"
                 icon="person"
                 error={errors.firstName?.message}
-                {...register('firstName', { required: 'First name is required' })}
+                {...register('firstName')}
               />
               <Input
                 label="Last Name"
                 placeholder="Kebede"
                 error={errors.lastName?.message}
-                {...register('lastName', { required: 'Last name is required' })}
+                {...register('lastName')}
               />
             </div>
 
@@ -87,7 +121,7 @@ export default function RegisterPage() {
               placeholder="abebe@example.com"
               icon="mail"
               error={errors.email?.message}
-              {...register('email', { required: 'Email is required' })}
+              {...register('email')}
             />
 
             <Input
@@ -104,10 +138,7 @@ export default function RegisterPage() {
               placeholder="Min. 8 characters"
               icon="lock"
               error={errors.password?.message}
-              {...register('password', {
-                required: 'Password is required',
-                minLength: { value: 8, message: 'Min. 8 characters' },
-              })}
+              {...register('password')}
             />
 
             <Input
@@ -116,10 +147,7 @@ export default function RegisterPage() {
               placeholder="Repeat your password"
               icon="lock"
               error={errors.confirmPassword?.message}
-              {...register('confirmPassword', {
-                required: 'Please confirm your password',
-                validate: (v) => v === password || 'Passwords do not match',
-              })}
+              {...register('confirmPassword')}
             />
 
             {error && (

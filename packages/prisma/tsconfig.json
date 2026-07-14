@@ -1,12 +1,15 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "target": "ES2020",
-    "strict": false,
+    "target": "ES2021",
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
     "outDir": "./dist",
-    "baseUrl": "."
+    "baseUrl": "./"
   },
-  "include": ["seed.ts"]
+  "ts-node": {
+    "esm": false
+  }
 }

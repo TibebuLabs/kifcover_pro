@@ -24,7 +24,8 @@ export class GatewayExceptionFilter implements ExceptionFilter {
 
     if (exception instanceof RpcException) {
       const err = exception.getError() as any;
-      status = err?.statusCode || HttpStatus.BAD_REQUEST;
+      const rawStatus = err?.statusCode ?? err?.status;
+      status = typeof rawStatus === 'number' ? rawStatus : HttpStatus.BAD_REQUEST;
       message = err?.message || 'Service error';
     } else if ((exception as any)?.status) {
       status = (exception as any).status;
