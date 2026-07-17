@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Sidebar } from '@/components/layout/Sidebar'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Badge } from '@/components/ui/Badge'
 import { api } from '@/lib/api'
@@ -21,18 +20,16 @@ export default function AdminPartnersPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.get('/partners')
+    api.get('/partner')
       .then((res) => setPartners(res.data))
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
   return (
-    <div className="flex min-h-screen bg-background-main">
-      <Sidebar />
-      <div className="ml-64 flex-1 flex flex-col">
-        <DashboardHeader title="Partner Management" subtitle="Manage all registered API partners." />
-        <main className="p-8 space-y-6 flex-1">
+    <>
+      <DashboardHeader title="Partner Management" subtitle="Manage all registered API partners." />
+      <main className="p-8 space-y-6 flex-1">
           {loading ? (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
@@ -66,7 +63,7 @@ export default function AdminPartnersPage() {
                       <td className="px-6 py-4 text-on-surface-variant">{new Date(p.createdAt).toLocaleDateString()}</td>
                       <td className="px-6 py-4">
                         <button
-                          onClick={() => api.post(`/partners/${p.id}/regenerate-key`).then(() => alert('API key regenerated'))}
+                          onClick={() => api.post(`/partner/${p.id}/regen-key`, { env: 'prod' }).then(() => alert('API key regenerated'))}
                           className="text-xs text-primary border border-border-subtle px-3 py-1.5 rounded-lg hover:bg-surface-container-low transition-colors"
                         >
                           Regen Key
@@ -78,8 +75,7 @@ export default function AdminPartnersPage() {
               </table>
             </div>
           )}
-        </main>
-      </div>
-    </div>
+      </main>
+    </>
   )
 }

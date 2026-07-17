@@ -124,9 +124,23 @@ This gateway is the **single HTTP entry point** for all 10 microservices.
 
   // ── Start ────────────────────────────────────────────────────────────────
   const port = process.env.GATEWAY_PORT || 3000;
-  await app.listen(port);
-  logger.log(`🌐 KifCover API Gateway  →  http://localhost:${port}/api/v1`);
-  logger.log(`📚 Swagger Docs          →  http://localhost:${port}/api/docs`);
+
+  // Retry on EADDRINUSE (Windows watch-mode race condition)
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      await app.listen(port);
+      logger.log(`🌐 KifCover API Gateway  →  http://localhost:${port}/api/v1`);
+      logger.log(`📚 Swagger Docs          →  http://localhost:${port}/api/docs`);
+      return;
+    } catch (err: any) {
+      if (err?.code === 'EADDRINUSE' && attempt < 5) {
+        logger.warn(`⚠️  Port ${port} busy (attempt ${attempt}/5), retrying in 2s...`);
+        await new Promise((r) => setTimeout(r, 2000));
+      } else {
+        throw err;
+      }
+    }
+  }
 }
 
 bootstrap();

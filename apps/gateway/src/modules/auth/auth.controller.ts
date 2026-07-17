@@ -1,70 +1,106 @@
-import { Controller, Post, Get, Body, Inject, Request, HttpCode, HttpStatus, ServiceUnavailableException } from '@nestjs/common';
+import { Controller, Post, Get, Body, Inject, Request, HttpCode, HttpStatus, Patch } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import {
-  ApiTags, ApiOperation, ApiBearerAuth,
-  ApiResponse, ApiBody,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { firstValueFrom } from 'rxjs';
+import { IsEmail, IsString, MinLength, IsOptional, IsIn } from 'class-validator';
 import { MSG } from '@kifcover/shared-types';
 import { Public } from '../../decorators/public.decorator';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
 
-function wrapRpc<T>(promise: Promise<T>): Promise<T> {
-  return promise.catch((err) => {
-    if (err?.constructor?.name === 'AggregateError' || err?.code === 'ECONNREFUSED') {
-      throw new ServiceUnavailableException('Auth service is unavailable');
-    }
-    throw err;
-  });
+class RegisterDto {
+  @ApiProperty() @IsString() firstName: string;
+  @ApiProperty() @IsString() lastName: string;
+  @ApiProperty() @IsEmail() email: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() phone?: string;
+  @ApiProperty() @IsString() @MinLength(8) password: string;
+  @ApiPropertyOptional({ enum: ['CUSTOMER', 'PARTNER_ADMIN', 'INSURANCE_PROVIDER'] })
+  @IsOptional()
+  @IsString()
+  @IsIn(['CUSTOMER', 'PARTNER_ADMIN', 'INSURANCE_PROVIDER'])
+  role?: string;
+}
+
+class LoginDto {
+  @ApiProperty() @IsEmail() email: string;
+  @ApiProperty() @IsString() password: string;
+}
+
+class SendOtpDto {
+  @ApiProperty({ example: '0911234567' }) @IsString() phone: string;
+}
+
+class VerifyOtpDto {
+  @ApiProperty() @IsString() phone: string;
+  @ApiProperty() @IsString() code: string;
+}
+
+class CompleteProfileDto {
+  @ApiProperty() @IsString() firstName: string;
+  @ApiProperty() @IsString() lastName: string;
+  @ApiPropertyOptional() @IsOptional() @IsEmail() email?: string;
+}
+
+class ChangePasswordDto {
+  @ApiProperty() @IsString() currentPassword: string;
+  @ApiProperty() @IsString() @MinLength(8) newPassword: string;
 }
 
 @ApiTags('🔐 Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(@Inject('AUTH_SERVICE') private readonly auth: ClientProxy) {}
-
-  // ── Register ─────────────────────────────────────────────────────────────
+  constructor(@Inject('AUTH_SERVICE') private readonly svc: ClientProxy) {}
 
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({
-    summary: 'Register a new customer account',
-    description: 'Creates a user account and returns a JWT access token.',
-  })
-  @ApiBody({ type: RegisterDto })
-  @ApiResponse({ status: 201, description: 'Account created — returns accessToken + user profile' })
-  @ApiResponse({ status: 409, description: 'Email already in use' })
-  @ApiResponse({ status: 400, description: 'Validation error' })
+  @ApiOperation({ summary: 'Register with email & password' })
   register(@Body() dto: RegisterDto) {
-    return wrapRpc(firstValueFrom(this.auth.send(MSG.AUTH_REGISTER, dto)));
+    return firstValueFrom(this.svc.send(MSG.AUTH_REGISTER, dto));
   }
-
-  // ── Login ─────────────────────────────────────────────────────────────────
 
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Login with email & password',
-    description: 'Returns a signed JWT (7-day expiry) and the user profile.',
-  })
-  @ApiBody({ type: LoginDto })
-  @ApiResponse({ status: 200, description: 'Login successful — { accessToken, user }' })
-  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiOperation({ summary: 'Login with email & password → JWT' })
   login(@Body() dto: LoginDto) {
-    return wrapRpc(firstValueFrom(this.auth.send(MSG.AUTH_LOGIN, dto)));
+    return firstValueFrom(this.svc.send(MSG.AUTH_LOGIN, dto));
   }
 
-  // ── Me ────────────────────────────────────────────────────────────────────
+  @Public()
+  @Post('otp/send')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Send OTP to phone number' })
+  sendOtp(@Body() dto: SendOtpDto) {
+    return firstValueFrom(this.svc.send(MSG.AUTH_SEND_OTP, dto));
+  }
+
+  @Public()
+  @Post('otp/verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify OTP and receive JWT' })
+  verifyOtp(@Body() dto: VerifyOtpDto) {
+    return firstValueFrom(this.svc.send(MSG.AUTH_VERIFY_OTP, dto));
+  }
 
   @ApiBearerAuth()
   @Get('me')
-  @ApiOperation({ summary: 'Get the currently authenticated user' })
-  @ApiResponse({ status: 200, description: 'Returns { id, email, role } from JWT payload' })
-  @ApiResponse({ status: 401, description: 'Missing or invalid token' })
+  @ApiOperation({ summary: 'Get current user from JWT' })
   getMe(@Request() req: any) {
     return req.user;
+  }
+
+  @ApiBearerAuth()
+  @Post('complete-profile')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Complete profile after first OTP login' })
+  completeProfile(@Request() req: any, @Body() dto: CompleteProfileDto) {
+    return firstValueFrom(this.svc.send(MSG.AUTH_COMPLETE_PROFILE, { id: req.user.id, ...dto }));
+  }
+
+  @ApiBearerAuth()
+  @Patch('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change password' })
+  changePassword(@Request() req: any, @Body() dto: ChangePasswordDto) {
+    return firstValueFrom(this.svc.send(MSG.AUTH_CHANGE_PASSWORD, { id: req.user.id, ...dto }));
   }
 }

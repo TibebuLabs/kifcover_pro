@@ -1,10 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Sidebar } from '@/components/layout/Sidebar'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { api } from '@/lib/api'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface Overview {
   totalUsers: number
@@ -21,7 +21,7 @@ export default function AdminAnalyticsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.get('/analytics/overview')
+    api.get('/admin/overview')
       .then((res) => setOverview(res.data))
       .catch(() => setOverview({
         totalUsers: 1248, totalPolicies: 4520, activePolicies: 3890,
@@ -40,11 +40,9 @@ export default function AdminAnalyticsPage() {
   ] : []
 
   return (
-    <div className="flex min-h-screen bg-background-main">
-      <Sidebar />
-      <div className="ml-64 flex-1 flex flex-col">
-        <DashboardHeader title="Platform Analytics" subtitle="Real-time performance metrics across the KifCover platform." />
-        <main className="p-8 space-y-8 flex-1">
+    <>
+      <DashboardHeader title="Platform Analytics" subtitle="Real-time performance metrics across the KifCover platform." />
+      <main className="p-8 space-y-8 flex-1">
           {/* KPI Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {loading
@@ -82,21 +80,33 @@ export default function AdminAnalyticsPage() {
                   </span>
                 </div>
               </div>
-              {/* Bar chart placeholder */}
-              <div className="relative h-52 flex items-end gap-2">
-                {[42, 58, 51, 70, 78, 65, 88, 82, 95, 88, 102, 95].map((h, i) => (
-                  <div key={i} className="flex-1 flex flex-col gap-1">
-                    <div
-                      className={`rounded-t-sm ${i === 11 ? 'bg-primary' : 'bg-primary-fixed/50'}`}
-                      style={{ height: `${(h / 102) * 100}%` }}
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={[
+                    { month: 'Jan', issued: 42, renewed: 12 },
+                    { month: 'Feb', issued: 58, renewed: 18 },
+                    { month: 'Mar', issued: 51, renewed: 15 },
+                    { month: 'Apr', issued: 70, renewed: 22 },
+                    { month: 'May', issued: 78, renewed: 25 },
+                    { month: 'Jun', issued: 65, renewed: 20 },
+                    { month: 'Jul', issued: 88, renewed: 28 },
+                    { month: 'Aug', issued: 82, renewed: 26 },
+                    { month: 'Sep', issued: 95, renewed: 30 },
+                    { month: 'Oct', issued: 88, renewed: 29 },
+                    { month: 'Nov', issued: 102, renewed: 35 },
+                    { month: 'Dec', issued: 95, renewed: 32 },
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="#9ca3af" />
+                    <YAxis tick={{ fontSize: 11 }} stroke="#9ca3af" />
+                    <Tooltip
+                      contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', fontSize: '12px' }}
+                      formatter={(value: number, name: string) => [value, name === 'issued' ? 'Issued' : 'Renewed']}
                     />
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-between mt-3 text-[10px] font-semibold text-outline uppercase">
-                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m) => (
-                  <span key={m}>{m}</span>
-                ))}
+                    <Bar dataKey="issued" fill="#1a6b4e" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="renewed" fill="#a7f3d0" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </Card>
 
@@ -132,8 +142,7 @@ export default function AdminAnalyticsPage() {
               </div>
             </Card>
           </div>
-        </main>
-      </div>
-    </div>
+      </main>
+    </>
   )
 }

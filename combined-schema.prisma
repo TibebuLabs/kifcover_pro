@@ -1,0 +1,502 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/combined-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// svc-auth + svc-customer (shared User table)
+// ══════════════════════════════════════════════════════════════════════════════
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  phone        String?
+  firstName    String
+  lastName     String
+  passwordHash String
+  role         UserRole  @default(CUSTOMER)
+  kycStatus    KycStatus @default(PENDING)
+  isActive     Boolean   @default(false)
+  partnerId    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  kycRecord    KycRecord?
+
+  @@index([email])
+  @@index([role])
+  @@index([partnerId])
+  @@map("users")
+}
+
+model OtpCode {
+  id        String   @id @default(uuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@map("otp_codes")
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// svc-customer
+// ══════════════════════════════════════════════════════════════════════════════
+
+model KycRecord {
+  id        String    @id @default(uuid())
+  userId    String    @unique
+  status    KycStatus @default(PENDING)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User         @relation(fields: [userId], references: [id])
+  documents KycDocument[]
+
+  @@map("kyc_records")
+}
+
+model KycDocument {
+  id          String    @id @default(uuid())
+  userId      String
+  type        DocType
+  fileUrl     String
+  status      DocStatus @default(PENDING)
+  ocrData     Json?
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  kycRecord   KycRecord? @relation(fields: [userId], references: [userId])
+
+  @@index([userId])
+  @@map("kyc_documents")
+}
+
+model Quote {
+  id             String    @id @default(uuid())
+  userId         String?
+  productId      String
+  productName    String
+  premium        Float
+  coverageAmount Float
+  durationDays   Int
+  metadata       Json      @default("{}")
+  expiresAt      DateTime
+  convertedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("quotes")
+}
+
+model Policy {
+  id             String       @id @default(uuid())
+  policyNumber   String       @unique @default(uuid())
+  userId         String
+  productId      String
+  productName    String
+  partnerId      String?
+  quoteId        String?      @unique
+  status         PolicyStatus @default(PENDING)
+  premium        Float
+  coverageAmount Float
+  startDate      DateTime
+  endDate        DateTime
+  qrCode         String?
+  metadata       Json         @default("{}")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([partnerId])
+  @@index([status])
+  @@map("policies")
+}
+
+model Claim {
+  id             String      @id @default(uuid())
+  claimNumber    String      @unique @default(uuid())
+  userId         String
+  policyId       String
+  policyNumber   String
+  status         ClaimStatus @default(SUBMITTED)
+  description    String
+  incidentDate   DateTime
+  claimAmount    Float
+  approvedAmount Float?
+  documents      Json        @default("[]")
+  adminNotes     String?
+  resolvedAt     DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([policyId])
+  @@index([status])
+  @@map("claims")
+}
+
+model Payment {
+  id           String          @id @default(uuid())
+  policyId     String?
+  claimId      String?
+  userId       String
+  amount       Float
+  currency     String          @default("ETB")
+  status       PaymentStatus   @default(PENDING)
+  provider     PaymentProvider
+  providerRef  String?
+  checkoutUrl  String?
+  metadata     Json            @default("{}")
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([policyId])
+  @@index([userId])
+  @@index([status])
+  @@map("payments")
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// svc-insurer
+// ══════════════════════════════════════════════════════════════════════════════
+
+model InsuranceProduct {
+  id             String          @id @default(uuid())
+  name           String
+  slug           String          @unique @default(uuid())
+  description    String
+  descriptionAm  String?
+  category       ProductCategory
+  basePrice      Float
+  coverageAmount Float
+  durationDays   Int
+  features       Json            @default("[]")
+  exclusions     Json            @default("[]")
+  termsUrl       String?
+  status         ProductStatus   @default(DRAFT)
+  isActive       Boolean         @default(false)
+  insurerId      String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  pricingRules    PricingRule[]
+  premiumTiers    PremiumTier[]
+  underwritingRules UnderwritingRule[]
+
+  @@index([category])
+  @@index([status])
+  @@index([insurerId])
+  @@map("insurance_products")
+}
+
+model PremiumTier {
+  id             String  @id @default(uuid())
+  productId      String
+  label          String
+  minAge         Int?
+  maxAge         Int?
+  sumInsuredMin  Float?
+  sumInsuredMax  Float?
+  premium        Float
+  product        InsuranceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("premium_tiers")
+}
+
+model PricingRule {
+  id         String   @id @default(uuid())
+  productId  String
+  ruleKey    String
+  operator   String
+  value      String
+  multiplier Float
+  createdAt  DateTime @default(now())
+
+  product InsuranceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("pricing_rules")
+}
+
+model UnderwritingRule {
+  id          String @id @default(uuid())
+  productId   String
+  ruleKey     String
+  ruleValue   String
+  description String?
+
+  product InsuranceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("underwriting_rules")
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// svc-partner
+// ══════════════════════════════════════════════════════════════════════════════
+
+model Partner {
+  id             String        @id @default(uuid())
+  name           String
+  slug           String        @unique
+  apiKeyProd     String        @unique @default(uuid())
+  apiKeySandbox  String        @unique @default(uuid())
+  webhookUrl     String?
+  webhookSecret  String?
+  logoUrl        String?
+  isActive       Boolean       @default(false)
+  status         PartnerStatus @default(PENDING)
+  commissionRate Float         @default(0.15)
+  adminUserId    String?
+  contractUrl    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  payouts        Payout[]
+  webhookLogs    WebhookLog[]
+  apiUsageLogs   ApiUsageLog[]
+
+  @@index([isActive])
+  @@index([status])
+  @@map("partners")
+}
+
+model Payout {
+  id        String       @id @default(uuid())
+  partnerId String
+  amount    Float
+  currency  String       @default("ETB")
+  status    PayoutStatus @default(PENDING)
+  period    String
+  paidAt    DateTime?
+  notes     String?
+  createdAt DateTime     @default(now())
+
+  partner Partner @relation(fields: [partnerId], references: [id])
+
+  @@index([partnerId])
+  @@index([status])
+  @@map("partner_payouts")
+}
+
+model WebhookLog {
+  id         String   @id @default(uuid())
+  partnerId  String
+  event      String
+  payload    Json
+  statusCode Int?
+  response   String?
+  retries    Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  partner Partner @relation(fields: [partnerId], references: [id])
+
+  @@index([partnerId])
+  @@index([event])
+  @@map("webhook_logs")
+}
+
+model ApiUsageLog {
+  id        String   @id @default(uuid())
+  partnerId String
+  endpoint  String
+  method    String
+  statusCode Int
+  latencyMs Int
+  createdAt DateTime @default(now())
+
+  partner Partner @relation(fields: [partnerId], references: [id])
+
+  @@index([partnerId])
+  @@index([createdAt])
+  @@map("api_usage_logs")
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// svc-admin
+// ══════════════════════════════════════════════════════════════════════════════
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  userEmail  String?
+  userRole   String?
+  service    String
+  action     String
+  resource   String
+  resourceId String?
+  oldValues  Json?
+  newValues  Json?
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([service])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model DailySnapshot {
+  id                  String   @id @default(uuid())
+  date                DateTime @unique
+  totalUsers          Int      @default(0)
+  newUsers            Int      @default(0)
+  totalPolicies       Int      @default(0)
+  newPolicies         Int      @default(0)
+  activePolicies      Int      @default(0)
+  totalClaims         Int      @default(0)
+  newClaims           Int      @default(0)
+  pendingClaims       Int      @default(0)
+  grossWrittenPremium Float    @default(0)
+  totalPayments       Float    @default(0)
+  claimsRatio         Float    @default(0)
+  createdAt           DateTime @default(now())
+
+  @@index([date])
+  @@map("daily_snapshots")
+}
+
+model ComplianceFlag {
+  id          String       @id @default(uuid())
+  userId      String?
+  resourceId  String?
+  resource    String
+  reason      String
+  severity    FlagSeverity @default(MEDIUM)
+  status      FlagStatus   @default(OPEN)
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  notes       String?
+  createdAt   DateTime     @default(now())
+
+  @@index([userId])
+  @@index([status])
+  @@index([severity])
+  @@map("compliance_flags")
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Enums
+// ══════════════════════════════════════════════════════════════════════════════
+
+enum UserRole {
+  CUSTOMER
+  PARTNER_ADMIN
+  PLATFORM_ADMIN
+  INSURANCE_PROVIDER
+}
+
+enum KycStatus {
+  PENDING
+  IN_PROGRESS
+  VERIFIED
+  REJECTED
+}
+
+enum DocType {
+  NATIONAL_ID
+  SELFIE
+  ADDRESS_PROOF
+  PASSPORT
+}
+
+enum DocStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum PolicyStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum ClaimStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  TELEBIRR
+  BANK
+  CARD
+}
+
+enum ProductCategory {
+  AUTO
+  HEALTH
+  TRAVEL
+  GADGET
+  LIFE
+  AGRICULTURE
+  SME
+}
+
+enum ProductStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  SUSPENDED
+}
+
+enum PartnerStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum FlagSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FlagStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}

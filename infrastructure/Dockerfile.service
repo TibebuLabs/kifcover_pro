@@ -1,43 +1,55 @@
-# Shared Dockerfile for all NestJS microservices
+# Shared Dockerfile for all KifCover NestJS microservices
 # Build: docker build --build-arg SERVICE=svc-auth -f infrastructure/Dockerfile.service .
+#
+# Valid SERVICE values: gateway, svc-auth, svc-customer, svc-insurer, svc-partner, svc-admin
 
 ARG SERVICE=svc-auth
 
-# ── Install deps ──────────────────────────────────────────────────────────────
+# ── Stage 1: Install dependencies ─────────────────────────────────────────────
 FROM node:20-alpine AS deps
 WORKDIR /app
 ARG SERVICE
+
 COPY package.json yarn.lock ./
 COPY packages/shared-types/package.json  ./packages/shared-types/
 COPY packages/shared-events/package.json ./packages/shared-events/
 COPY packages/prisma/package.json        ./packages/prisma/
 COPY apps/${SERVICE}/package.json        ./apps/${SERVICE}/
+
 RUN yarn install --frozen-lockfile --ignore-scripts
 
-# ── Build ─────────────────────────────────────────────────────────────────────
+# ── Stage 2: Build ────────────────────────────────────────────────────────────
 FROM deps AS builder
 WORKDIR /app
 ARG SERVICE
+
+# Copy source
 COPY packages/shared-types/  ./packages/shared-types/
 COPY packages/shared-events/ ./packages/shared-events/
 COPY packages/prisma/        ./packages/prisma/
 COPY apps/${SERVICE}/        ./apps/${SERVICE}/
-# Generate Prisma client for this service (schema lives in apps/<SERVICE>/prisma/)
+
+# Generate Prisma client — handle both single schema.prisma and none
 RUN if [ -f "apps/${SERVICE}/prisma/schema.prisma" ]; then \
       node_modules/.bin/prisma generate --schema="apps/${SERVICE}/prisma/schema.prisma"; \
     fi
+
+# Build NestJS app
 RUN yarn workspace @kifcover/${SERVICE} build
 
-# ── Runtime ───────────────────────────────────────────────────────────────────
+# ── Stage 3: Runtime ──────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ARG SERVICE
 
-COPY --from=builder /app/node_modules             ./node_modules
-COPY --from=builder /app/packages                 ./packages
-COPY --from=builder /app/apps/${SERVICE}/dist     ./dist
-# Copy prisma schema so the client can be generated at runtime if needed
-COPY --from=builder /app/apps/${SERVICE}/prisma   ./prisma 2>/dev/null || true
+COPY --from=builder /app/node_modules          ./node_modules
+COPY --from=builder /app/packages              ./packages
+COPY --from=builder /app/apps/${SERVICE}/dist  ./dist
 
+# Copy prisma schema for runtime reference
+RUN mkdir -p ./prisma
+COPY --from=builder /app/apps/${SERVICE}/prisma/ ./prisma/ 2>/dev/null || true
+
+EXPOSE 3000
 CMD ["node", "dist/main"]

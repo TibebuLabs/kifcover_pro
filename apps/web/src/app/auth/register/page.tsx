@@ -3,18 +3,41 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
-import { api } from '@/lib/api'
+import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 
-interface RegisterForm {
-  firstName: string
-  lastName: string
-  email: string
-  phone?: string
-  password: string
-  confirmPassword: string
+const registerSchema = z.object({
+  firstName: z.string().min(2, 'At least 2 characters'),
+  lastName: z.string().min(2, 'At least 2 characters'),
+  email: z.string().email('Invalid email'),
+  phone: z.string().optional(),
+  password: z.string().min(8, 'At least 8 characters'),
+  confirmPassword: z.string(),
+  role: z.enum(['CUSTOMER', 'PARTNER_ADMIN', 'INSURANCE_PROVIDER'], { required_error: 'Please select a role' }),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+})
+
+type RegisterForm = z.infer<typeof registerSchema>
+
+const roles = [
+  { value: 'CUSTOMER', label: 'Customer', desc: 'Buy insurance for yourself or your family', icon: 'person', color: 'text-primary' },
+  { value: 'PARTNER_ADMIN', label: 'Partner', desc: 'Sell insurance through your platform', icon: 'handshake', color: 'text-amber-600' },
+  { value: 'INSURANCE_PROVIDER', label: 'Insurer', desc: 'List and manage insurance products', icon: 'business', color: 'text-violet-600' },
+]
+
+function roleRedirect(role: string): string {
+  switch (role) {
+    case 'PLATFORM_ADMIN':     return '/admin/analytics'
+    case 'INSURANCE_PROVIDER': return '/insurer/dashboard'
+    case 'PARTNER_ADMIN':      return '/partner/dashboard'
+    default:                   return '/kyc'
+  }
 }
 
 export default function RegisterPage() {
@@ -22,27 +45,28 @@ export default function RegisterPage() {
   const { setUser, setToken } = useAuthStore()
   const [error, setError] = useState('')
 
-  const { register, handleSubmit, watch, formState: { isSubmitting, errors } } = useForm<RegisterForm>()
+  const { register, handleSubmit, watch, setValue, formState: { isSubmitting, errors } } = useForm<RegisterForm>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { role: 'CUSTOMER' },
+  })
   const password = watch('password')
+  const selectedRole = watch('role')
 
   const onSubmit = async (data: RegisterForm) => {
-    if (data.password !== data.confirmPassword) {
-      setError('Passwords do not match')
-      return
-    }
     try {
       setError('')
-      const res = await api.post('/auth/register', {
+      const res = await authApi.register({
         firstName: data.firstName,
-        lastName:  data.lastName,
-        email:     data.email,
-        phone:     data.phone || undefined,
-        password:  data.password,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone || undefined,
+        password: data.password,
+        role: data.role,
       })
       const { accessToken, user } = res.data
       setToken(accessToken)
       setUser(user)
-      router.push('/dashboard')
+      router.push(roleRedirect(user.role))
     } catch (err: any) {
       const msg = err.response?.data?.message
       setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Registration failed. Please try again.')
@@ -50,34 +74,91 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background-main px-4 py-12">
-      <div className="w-full max-w-lg">
-        <div className="text-center mb-10">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
+    <div className="min-h-screen flex">
+      {/* Left branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-primary relative overflow-hidden items-center justify-center">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,rgba(255,255,255,0.08),transparent_60%)]" />
+        <div className="relative z-10 text-on-primary px-16 max-w-lg">
+          <div className="flex items-center gap-3 mb-12">
+            <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+              shield_with_heart
+            </span>
+            <span className="font-display text-3xl font-bold">KifCover</span>
+          </div>
+          <h1 className="font-display text-4xl font-bold leading-tight mb-4">
+            Join thousands protecting what matters most
+          </h1>
+          <p className="text-on-primary/80 text-lg leading-relaxed mb-12">
+            Create your free account and get covered in under 3 minutes. Choose from 50+ insurance products.
+          </p>
+          <div className="flex items-center gap-6 text-sm text-on-primary/70">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px]">verified_user</span>
+              <span>Licensed by NBE</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px]">lock</span>
+              <span>256-bit encryption</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center px-8 py-12 bg-background-main">
+        <div className="w-full max-w-md">
+          <Link href="/" className="inline-flex items-center gap-2 mb-8 lg:hidden">
             <span className="material-symbols-outlined text-3xl text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>
               shield_with_heart
             </span>
             <span className="font-display text-2xl font-bold text-primary">KifCover</span>
           </Link>
-          <h2 className="font-display text-3xl font-bold text-primary mb-2">Create your account</h2>
-          <p className="text-on-surface-variant text-sm">Join thousands of Ethiopians protecting what matters most.</p>
-        </div>
 
-        <div className="bg-white rounded-3xl border border-border-subtle shadow-card p-8">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          <h2 className="font-display text-3xl font-bold text-primary mb-2">Create your account</h2>
+          <p className="text-on-surface-variant text-sm mb-8">Fill in your details to get started.</p>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/* Role selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-on-surface">I want to...</label>
+              <div className="grid grid-cols-3 gap-2">
+                {roles.map((r) => (
+                  <button
+                    key={r.value}
+                    type="button"
+                    onClick={() => setValue('role', r.value as RegisterForm['role'], { shouldValidate: true })}
+                    className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all text-center ${
+                      selectedRole === r.value
+                        ? 'border-primary bg-primary/5 shadow-sm'
+                        : 'border-border-subtle hover:border-outline-variant bg-surface-container-lowest'
+                    }`}
+                  >
+                    {selectedRole === r.value && (
+                      <span className="absolute top-2 right-2 material-symbols-outlined text-primary text-[16px]">check_circle</span>
+                    )}
+                    <span className={`material-symbols-outlined text-2xl ${r.color}`}>{r.icon}</span>
+                    <span className="text-xs font-bold text-on-surface">{r.label}</span>
+                  </button>
+                ))}
+              </div>
+              {/* Hidden input for form validation */}
+              <input type="hidden" {...register('role')} />
+              {errors.role && <p className="text-xs text-error mt-1">{errors.role.message}</p>}
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="First Name"
                 placeholder="Abebe"
                 icon="person"
                 error={errors.firstName?.message}
-                {...register('firstName', { required: 'First name is required' })}
+                {...register('firstName')}
               />
               <Input
                 label="Last Name"
                 placeholder="Kebede"
                 error={errors.lastName?.message}
-                {...register('lastName', { required: 'Last name is required' })}
+                {...register('lastName')}
               />
             </div>
 
@@ -87,7 +168,7 @@ export default function RegisterPage() {
               placeholder="abebe@example.com"
               icon="mail"
               error={errors.email?.message}
-              {...register('email', { required: 'Email is required' })}
+              {...register('email')}
             />
 
             <Input
@@ -104,10 +185,7 @@ export default function RegisterPage() {
               placeholder="Min. 8 characters"
               icon="lock"
               error={errors.password?.message}
-              {...register('password', {
-                required: 'Password is required',
-                minLength: { value: 8, message: 'Min. 8 characters' },
-              })}
+              {...register('password')}
             />
 
             <Input
@@ -116,10 +194,7 @@ export default function RegisterPage() {
               placeholder="Repeat your password"
               icon="lock"
               error={errors.confirmPassword?.message}
-              {...register('confirmPassword', {
-                required: 'Please confirm your password',
-                validate: (v) => v === password || 'Passwords do not match',
-              })}
+              {...register('confirmPassword')}
             />
 
             {error && (

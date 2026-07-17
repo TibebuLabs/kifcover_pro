@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/svc-partner-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Partner {
+  id             String        @id @default(uuid())
+  name           String
+  slug           String        @unique
+  apiKeyProd     String        @unique @default(uuid())
+  apiKeySandbox  String        @unique @default(uuid())
+  webhookUrl     String?
+  webhookSecret  String?
+  logoUrl        String?
+  isActive       Boolean       @default(false)  // inactive until admin approves
+  status         PartnerStatus @default(PENDING)
+  commissionRate Float         @default(0.15)
+  adminUserId    String?       // linked PARTNER_ADMIN user UUID
+  contractUrl    String?       // signed contract PDF URL
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  payouts        Payout[]
+  webhookLogs    WebhookLog[]
+  apiUsageLogs   ApiUsageLog[]
+
+  @@index([isActive])
+  @@index([status])
+  @@map("partners")
+}
+
+model Payout {
+  id        String       @id @default(uuid())
+  partnerId String
+  amount    Float
+  currency  String       @default("ETB")
+  status    PayoutStatus @default(PENDING)
+  period    String       // "2026-07"
+  paidAt    DateTime?
+  notes     String?
+  createdAt DateTime     @default(now())
+
+  partner Partner @relation(fields: [partnerId], references: [id])
+
+  @@index([partnerId])
+  @@index([status])
+  @@map("partner_payouts")
+}
+
+model WebhookLog {
+  id         String   @id @default(uuid())
+  partnerId  String
+  event      String
+  payload    Json
+  statusCode Int?
+  response   String?
+  retries    Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  partner Partner @relation(fields: [partnerId], references: [id])
+
+  @@index([partnerId])
+  @@index([event])
+  @@map("webhook_logs")
+}
+
+model ApiUsageLog {
+  id        String   @id @default(uuid())
+  partnerId String
+  endpoint  String
+  method    String
+  statusCode Int
+  latencyMs Int
+  createdAt DateTime @default(now())
+
+  partner Partner @relation(fields: [partnerId], references: [id])
+
+  @@index([partnerId])
+  @@index([createdAt])
+  @@map("api_usage_logs")
+}
+
+enum PartnerStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}

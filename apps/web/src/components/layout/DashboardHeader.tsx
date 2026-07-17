@@ -1,6 +1,7 @@
 'use client'
 import { useAuthStore } from '@/store/authStore'
 import { Badge } from '@/components/ui/Badge'
+import { useSidebar } from '@/components/layout/SidebarContext'
 
 interface DashboardHeaderProps {
   title: string
@@ -9,13 +10,19 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ title, subtitle }: DashboardHeaderProps) {
   const { user } = useAuthStore()
+  const { toggle } = useSidebar()
 
   return (
     <header className="sticky top-0 z-30 bg-surface-glass backdrop-blur-md border-b border-outline-variant/30 shadow-sm">
-      <div className="flex items-center justify-between px-8 h-16">
-        <div>
-          <h1 className="font-display text-xl font-bold text-primary">{title}</h1>
-          {subtitle && <p className="text-xs text-on-surface-variant">{subtitle}</p>}
+      <div className="flex items-center justify-between px-4 sm:px-8 h-16">
+        <div className="flex items-center gap-3">
+          <button onClick={toggle} className="lg:hidden p-2 text-on-surface-variant hover:bg-surface-container-high rounded-xl transition-colors">
+            <span className="material-symbols-outlined">menu</span>
+          </button>
+          <div>
+            <h1 className="font-display text-xl font-bold text-primary">{title}</h1>
+            {subtitle && <p className="text-xs text-on-surface-variant">{subtitle}</p>}
+          </div>
         </div>
         <div className="flex items-center gap-4">
           <button className="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-all relative">
