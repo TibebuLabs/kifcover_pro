@@ -37,6 +37,9 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         Cookies.remove('kif_token')
         set({ user: null, token: null })
+        if (typeof window !== 'undefined') {
+          window.location.href = '/auth/login'
+        }
       },
       isAuthenticated: () => !!get().token && !!get().user,
     }),

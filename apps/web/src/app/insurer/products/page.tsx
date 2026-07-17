@@ -32,14 +32,14 @@ export default function InsurerProductsPage() {
 
   const load = () => {
     setLoading(true)
-    api.get('/products').then(r => setProducts(r.data)).catch(() => {}).finally(() => setLoading(false))
+    api.get('/insurer/products').then(r => setProducts(r.data)).catch(() => {}).finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
 
   const onCreate = async (data: ProductForm) => {
     setErr(''); setCreating(true)
     try {
-      await api.post('/products', { ...data, features: [], basePrice: +data.basePrice, coverageAmount: +data.coverageAmount, durationDays: +data.durationDays })
+      await api.post('/insurer/products', { ...data, features: [], basePrice: +data.basePrice, coverageAmount: +data.coverageAmount, durationDays: +data.durationDays })
       reset(); setShowCreate(false); load()
     } catch (e: any) { setErr(e.response?.data?.message || 'Failed') }
     setCreating(false)
@@ -47,7 +47,7 @@ export default function InsurerProductsPage() {
 
   const toggleActive = async (p: Product) => {
     try {
-      await api.patch(`/products/${p.id}`, { isActive: !p.isActive })
+      await api.patch(`/insurer/products/${p.id}`, { isActive: !p.isActive })
       load()
     } catch {}
   }

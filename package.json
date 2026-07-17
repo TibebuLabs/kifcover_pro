@@ -4,7 +4,9 @@
   "private": true,
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "dev": "concurrently -n \"GW,AUTH,CUST,INSUR,PART,ADMIN,WEB\" -c \"cyan,blue,magenta,yellow,green,red,bgCyan\" \"yarn dev:gateway\" \"yarn dev:auth\" \"yarn dev:customer\" \"yarn dev:insurer\" \"yarn dev:partner\" \"yarn dev:admin\" \"yarn dev:web\"",
+    "stop":         "powershell -NoProfile -File scripts/stop.ps1",
+    "start":        "powershell -NoProfile -File scripts/start.ps1",
+    "dev":          "yarn stop && yarn start",
     "dev:gateway":  "yarn workspace @kifcover/gateway start:dev",
     "dev:auth":     "yarn workspace @kifcover/svc-auth start:dev",
     "dev:customer": "yarn workspace @kifcover/svc-customer start:dev",

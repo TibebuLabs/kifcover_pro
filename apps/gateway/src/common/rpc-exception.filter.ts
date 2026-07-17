@@ -27,10 +27,19 @@ export class GatewayExceptionFilter implements ExceptionFilter {
       const rawStatus = err?.statusCode ?? err?.status;
       status = typeof rawStatus === 'number' ? rawStatus : HttpStatus.BAD_REQUEST;
       message = err?.message || 'Service error';
-    } else if ((exception as any)?.status) {
+    } else if ((exception as any)?.statusCode && typeof (exception as any).statusCode === 'number') {
+      status = (exception as any).statusCode;
+      message = (exception as any).message || 'Service error';
+    } else if ((exception as any)?.response?.statusCode && typeof (exception as any).response.statusCode === 'number') {
+      status = (exception as any).response.statusCode;
+      message = (exception as any).response.message || (exception as any).message || 'Service error';
+    } else if ((exception as any)?.status && typeof (exception as any).status === 'number') {
       status = (exception as any).status;
       const resp = (exception as any).response;
       message = typeof resp === 'object' ? resp.message : (exception as any).message;
+    } else if (typeof exception === 'string') {
+      message = exception;
+      status = HttpStatus.BAD_REQUEST;
     }
 
     if (status >= 500) {

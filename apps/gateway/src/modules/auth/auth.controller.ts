@@ -2,7 +2,7 @@ import { Controller, Post, Get, Body, Inject, Request, HttpCode, HttpStatus, Pat
 import { ClientProxy } from '@nestjs/microservices';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { firstValueFrom } from 'rxjs';
-import { IsEmail, IsString, MinLength, IsOptional } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsOptional, IsIn } from 'class-validator';
 import { MSG } from '@kifcover/shared-types';
 import { Public } from '../../decorators/public.decorator';
 
@@ -12,6 +12,11 @@ class RegisterDto {
   @ApiProperty() @IsEmail() email: string;
   @ApiPropertyOptional() @IsOptional() @IsString() phone?: string;
   @ApiProperty() @IsString() @MinLength(8) password: string;
+  @ApiPropertyOptional({ enum: ['CUSTOMER', 'PARTNER_ADMIN', 'INSURANCE_PROVIDER'] })
+  @IsOptional()
+  @IsString()
+  @IsIn(['CUSTOMER', 'PARTNER_ADMIN', 'INSURANCE_PROVIDER'])
+  role?: string;
 }
 
 class LoginDto {

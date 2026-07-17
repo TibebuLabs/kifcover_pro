@@ -17,6 +17,7 @@ const registerSchema = z.object({
   phone: z.string().optional(),
   password: z.string().min(8, 'At least 8 characters'),
   confirmPassword: z.string(),
+  role: z.enum(['CUSTOMER', 'PARTNER_ADMIN', 'INSURANCE_PROVIDER'], { required_error: 'Please select a role' }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
   path: ['confirmPassword'],
@@ -24,15 +25,32 @@ const registerSchema = z.object({
 
 type RegisterForm = z.infer<typeof registerSchema>
 
+const roles = [
+  { value: 'CUSTOMER', label: 'Customer', desc: 'Buy insurance for yourself or your family', icon: 'person', color: 'text-primary' },
+  { value: 'PARTNER_ADMIN', label: 'Partner', desc: 'Sell insurance through your platform', icon: 'handshake', color: 'text-amber-600' },
+  { value: 'INSURANCE_PROVIDER', label: 'Insurer', desc: 'List and manage insurance products', icon: 'business', color: 'text-violet-600' },
+]
+
+function roleRedirect(role: string): string {
+  switch (role) {
+    case 'PLATFORM_ADMIN':     return '/admin/analytics'
+    case 'INSURANCE_PROVIDER': return '/insurer/dashboard'
+    case 'PARTNER_ADMIN':      return '/partner/dashboard'
+    default:                   return '/kyc'
+  }
+}
+
 export default function RegisterPage() {
   const router = useRouter()
   const { setUser, setToken } = useAuthStore()
   const [error, setError] = useState('')
 
-  const { register, handleSubmit, watch, formState: { isSubmitting, errors } } = useForm<RegisterForm>({
+  const { register, handleSubmit, watch, setValue, formState: { isSubmitting, errors } } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
+    defaultValues: { role: 'CUSTOMER' },
   })
   const password = watch('password')
+  const selectedRole = watch('role')
 
   const onSubmit = async (data: RegisterForm) => {
     try {
@@ -43,11 +61,12 @@ export default function RegisterPage() {
         email: data.email,
         phone: data.phone || undefined,
         password: data.password,
+        role: data.role,
       })
       const { accessToken, user } = res.data
       setToken(accessToken)
       setUser(user)
-      router.push('/kyc')
+      router.push(roleRedirect(user.role))
     } catch (err: any) {
       const msg = err.response?.data?.message
       setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Registration failed. Please try again.')
@@ -99,6 +118,34 @@ export default function RegisterPage() {
           <p className="text-on-surface-variant text-sm mb-8">Fill in your details to get started.</p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/* Role selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-on-surface">I want to...</label>
+              <div className="grid grid-cols-3 gap-2">
+                {roles.map((r) => (
+                  <button
+                    key={r.value}
+                    type="button"
+                    onClick={() => setValue('role', r.value as RegisterForm['role'], { shouldValidate: true })}
+                    className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all text-center ${
+                      selectedRole === r.value
+                        ? 'border-primary bg-primary/5 shadow-sm'
+                        : 'border-border-subtle hover:border-outline-variant bg-surface-container-lowest'
+                    }`}
+                  >
+                    {selectedRole === r.value && (
+                      <span className="absolute top-2 right-2 material-symbols-outlined text-primary text-[16px]">check_circle</span>
+                    )}
+                    <span className={`material-symbols-outlined text-2xl ${r.color}`}>{r.icon}</span>
+                    <span className="text-xs font-bold text-on-surface">{r.label}</span>
+                  </button>
+                ))}
+              </div>
+              {/* Hidden input for form validation */}
+              <input type="hidden" {...register('role')} />
+              {errors.role && <p className="text-xs text-error mt-1">{errors.role.message}</p>}
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="First Name"

@@ -301,6 +301,9 @@ export const MSG = {
   AUTH_VERIFY_OTP:    'auth.verify_otp',
   AUTH_COMPLETE_PROFILE: 'auth.complete_profile',
   AUTH_CHANGE_PASSWORD:  'auth.change_password',
+  AUTH_USERS_PENDING:    'auth.users.pending',
+  AUTH_USER_APPROVE:     'auth.user.approve',
+  AUTH_USER_REJECT:      'auth.user.reject',
 
   // ── svc-customer: users ───────────────────────────────────────────────────
   USER_FIND_ALL:      'user.find_all',
@@ -371,3 +374,5 @@ export const MSG = {
   ANALYTICS_AUDIT_LOG:      'analytics.audit_log',
   ANALYTICS_AUDIT_LIST:     'analytics.audit_list',
 } as const;
+
+export { MicroserviceExceptionFilter } from './rpc-exception.filter';

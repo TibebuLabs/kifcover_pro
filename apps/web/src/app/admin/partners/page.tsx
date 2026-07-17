@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Sidebar } from '@/components/layout/Sidebar'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Badge } from '@/components/ui/Badge'
 import { api } from '@/lib/api'
@@ -28,11 +27,9 @@ export default function AdminPartnersPage() {
   }, [])
 
   return (
-    <div className="flex min-h-screen bg-background-main">
-      <Sidebar />
-      <div className="ml-64 flex-1 flex flex-col">
-        <DashboardHeader title="Partner Management" subtitle="Manage all registered API partners." />
-        <main className="p-8 space-y-6 flex-1">
+    <>
+      <DashboardHeader title="Partner Management" subtitle="Manage all registered API partners." />
+      <main className="p-8 space-y-6 flex-1">
           {loading ? (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
@@ -78,8 +75,7 @@ export default function AdminPartnersPage() {
               </table>
             </div>
           )}
-        </main>
-      </div>
-    </div>
+      </main>
+    </>
   )
 }

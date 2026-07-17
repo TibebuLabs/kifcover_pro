@@ -41,4 +41,19 @@ export class AuthController {
   changePassword(@Payload() p: { id: string; currentPassword: string; newPassword: string }) {
     return this.svc.changePassword(p.id, p.currentPassword, p.newPassword);
   }
+
+  @MessagePattern(MSG.AUTH_USERS_PENDING)
+  getPendingUsers() {
+    return this.svc.getPendingUsers();
+  }
+
+  @MessagePattern(MSG.AUTH_USER_APPROVE)
+  approveUser(@Payload() p: { id: string }) {
+    return this.svc.approveUser(p.id);
+  }
+
+  @MessagePattern(MSG.AUTH_USER_REJECT)
+  rejectUser(@Payload() p: { id: string }) {
+    return this.svc.rejectUser(p.id);
+  }
 }

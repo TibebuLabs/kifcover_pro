@@ -5,15 +5,28 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useForm } from 'react-hook-form'
+import { authApi } from '@/lib/api'
 
 export default function SecurityPage() {
   const [saved, setSaved] = useState(false)
-  const { register, handleSubmit, watch, formState: { isSubmitting, errors } } = useForm()
+  const [error, setError] = useState('')
+  const { register, handleSubmit, watch, reset, formState: { isSubmitting, errors } } = useForm()
 
-  const onSubmit = async () => {
-    await new Promise((r) => setTimeout(r, 800))
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+  const onSubmit = async (data: any) => {
+    setError('')
+    if (data.newPass !== data.confirm) {
+      setError('Passwords do not match')
+      return
+    }
+    try {
+      await authApi.changePassword({ currentPassword: data.current, newPassword: data.newPass })
+      setSaved(true)
+      reset()
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err: any) {
+      const msg = err?.response?.data?.message
+      setError(typeof msg === 'string' ? msg : 'Failed to change password. Please check your current password.')
+    }
   }
 
   return (
@@ -24,12 +37,18 @@ export default function SecurityPage() {
           <h3 className="font-display text-lg font-bold text-primary mb-6">Change Password</h3>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input label="Current Password" type="password" icon="lock"
-              {...register('current', { required: true })} />
+              {...register('current', { required: 'Current password is required' })} />
             <Input label="New Password" type="password" icon="lock"
               {...register('newPass', { required: true, minLength: { value: 8, message: 'Min 8 characters' } })}
               error={errors.newPass?.message as string} />
             <Input label="Confirm New Password" type="password" icon="lock"
               {...register('confirm', { required: true })} />
+            {error && (
+              <div className="flex items-center gap-2 bg-error-container text-on-error-container px-4 py-3 rounded-xl text-sm">
+                <span className="material-symbols-outlined text-[18px]">error</span>
+                {error}
+              </div>
+            )}
             {saved && (
               <div className="flex items-center gap-2 bg-green-50 text-green-700 px-4 py-3 rounded-xl text-sm">
                 <span className="material-symbols-outlined text-[18px]">check_circle</span>

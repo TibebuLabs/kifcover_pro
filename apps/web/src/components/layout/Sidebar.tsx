@@ -3,10 +3,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { clsx } from 'clsx'
 import { useAuthStore } from '@/store/authStore'
+import { useSidebar } from '@/components/layout/SidebarContext'
 
 interface NavItem { icon: string; label: string; href: string }
-
-// ── Per-role navigation maps ──────────────────────────────────────────────────
 
 const customerNav: NavItem[] = [
   { icon: 'dashboard',           label: 'Dashboard',    href: '/dashboard' },
@@ -60,14 +59,15 @@ function getRoleConfig(role?: string): { nav: NavItem[]; label: string; color: s
 export function Sidebar() {
   const pathname = usePathname()
   const { user, logout } = useAuthStore()
+  const { isOpen, close } = useSidebar()
   const { nav, label, color } = getRoleConfig(user?.role)
 
-  // Admins also see the customer nav section
   const showCustomerSection = user?.role === 'PLATFORM_ADMIN'
 
   const NavLink = ({ icon, label: lbl, href }: NavItem) => (
     <Link
       href={href}
+      onClick={close}
       className={clsx(
         'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all',
         pathname === href || pathname.startsWith(href + '/')
@@ -85,10 +85,10 @@ export function Sidebar() {
     </Link>
   )
 
-  return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-surface-container-low border-r border-outline-variant/30 flex flex-col py-6 px-4 z-40">
+  const sidebarContent = (
+    <>
       {/* Logo */}
-      <Link href="/" className="flex items-center gap-2 px-4 mb-6">
+      <Link href="/" className="flex items-center gap-2 px-4 mb-6" onClick={close}>
         <span className="material-symbols-outlined text-2xl text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>
           shield_with_heart
         </span>
@@ -105,7 +105,6 @@ export function Sidebar() {
       <nav className="flex-1 space-y-0.5 overflow-y-auto">
         {nav.map((item) => <NavLink key={item.href} {...item} />)}
 
-        {/* Admin users also get quick customer navigation */}
         {showCustomerSection && (
           <>
             <div className="pt-4 pb-2 px-4">
@@ -118,7 +117,6 @@ export function Sidebar() {
 
       {/* User identity + logout */}
       <div className="border-t border-outline-variant/30 pt-4 mt-4 space-y-1">
-        {/* User info */}
         <div className="flex items-center gap-3 px-4 py-2 mb-1">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-on-primary text-xs font-bold shrink-0">
             {user?.firstName?.[0]}{user?.lastName?.[0]}
@@ -140,6 +138,28 @@ export function Sidebar() {
           Log Out
         </button>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex fixed left-0 top-0 h-screen w-64 bg-surface-container-low border-r border-outline-variant/30 flex-col py-6 px-4 z-40">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile overlay */}
+      {isOpen && (
+        <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={close} />
+      )}
+
+      {/* Mobile sidebar */}
+      <aside className={clsx(
+        'fixed left-0 top-0 h-screen w-64 bg-surface-container-low border-r border-outline-variant/30 flex flex-col py-6 px-4 z-50 transition-transform duration-300 lg:hidden',
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      )}>
+        {sidebarContent}
+      </aside>
+    </>
   )
 }

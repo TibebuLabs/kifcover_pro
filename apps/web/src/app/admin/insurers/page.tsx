@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Sidebar } from '@/components/layout/Sidebar'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -25,11 +24,9 @@ export default function AdminInsurersPage() {
   }, [])
 
   return (
-    <div className="flex min-h-screen bg-background-main">
-      <Sidebar />
-      <div className="ml-64 flex-1 flex flex-col">
-        <DashboardHeader title="Insurer Management" subtitle="Manage insurance company accounts and their product mandates." />
-        <main className="p-8 flex-1 space-y-6">
+    <>
+      <DashboardHeader title="Insurer Management" subtitle="Manage insurance company accounts and their product mandates." />
+      <main className="p-8 flex-1 space-y-6">
           <div className="bg-white rounded-2xl border border-border-subtle overflow-hidden shadow-card">
             {loading ? (
               <div className="p-8 space-y-3">{[1,2].map(i => <div key={i} className="h-14 bg-surface-container rounded-xl animate-pulse" />)}</div>
@@ -63,8 +60,7 @@ export default function AdminInsurersPage() {
               </table>
             )}
           </div>
-        </main>
-      </div>
-    </div>
+      </main>
+    </>
   )
 }

@@ -13,13 +13,11 @@ export default function InsurerAnalyticsPage() {
 
   useEffect(() => {
     Promise.all([
-      api.get('/admin/overview').catch(() => ({ data: null })),
-      api.get('/admin/analytics/policies/trends').catch(() => ({ data: [] })),
-      api.get('/admin/analytics/claims/trends').catch(() => ({ data: [] })),
-    ]).then(([ov, pt, ct]) => {
-      setOverview(ov.data ?? { totalPolicies: 4520, activePolicies: 3890, grossWrittenPremium: 4_200_000, totalClaims: 312, pendingClaims: 47, avgClaimProcessingHours: 31.4 })
-      setPolicyTrends(pt.data ?? [])
-      setClaimTrends(ct.data ?? [])
+      api.get('/insurer/stats').catch(() => ({ data: null })),
+    ]).then(([ps]) => {
+      setOverview(ps?.data ?? { totalPolicies: 4520, activePolicies: 3890, grossWrittenPremium: 4_200_000, totalClaims: 312, pendingClaims: 47, avgClaimProcessingHours: 31.4 })
+      setPolicyTrends([])
+      setClaimTrends([])
     }).finally(() => setLoading(false))
   }, [])
 

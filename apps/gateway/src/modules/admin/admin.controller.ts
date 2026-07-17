@@ -13,7 +13,10 @@ import { Roles } from '../../decorators/roles.decorator';
 @Roles('PLATFORM_ADMIN')
 @Controller('admin')
 export class AdminController {
-  constructor(@Inject('ADMIN_SERVICE') private readonly svc: ClientProxy) {}
+  constructor(
+    @Inject('ADMIN_SERVICE') private readonly svc: ClientProxy,
+    @Inject('AUTH_SERVICE') private readonly auth: ClientProxy,
+  ) {}
 
   // ── Platform overview ─────────────────────────────────────────────────────
   @Get('overview')
@@ -141,5 +144,26 @@ export class AdminController {
   @ApiOperation({ summary: 'Update a system setting' })
   setSetting(@Param('key') key: string, @Body() body: { value: string }) {
     return firstValueFrom(this.svc.send('admin.settings.set', { key, value: body.value }));
+  }
+
+  // ── User approval ───────────────────────────────────────────────────────
+  @Get('users/pending')
+  @ApiOperation({ summary: 'List users pending admin approval' })
+  getPendingUsers() {
+    return firstValueFrom(this.auth.send(MSG.AUTH_USERS_PENDING, {}));
+  }
+
+  @Post('users/:id/approve')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Approve a pending user' })
+  approveUser(@Param('id') id: string) {
+    return firstValueFrom(this.auth.send(MSG.AUTH_USER_APPROVE, { id }));
+  }
+
+  @Post('users/:id/reject')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reject and remove a pending user' })
+  rejectUser(@Param('id') id: string) {
+    return firstValueFrom(this.auth.send(MSG.AUTH_USER_REJECT, { id }));
   }
 }

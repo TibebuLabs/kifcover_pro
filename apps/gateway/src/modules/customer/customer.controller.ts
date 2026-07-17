@@ -2,7 +2,7 @@ import {
   Controller, Get, Post, Patch, Param, Body, Query,
   Inject, Request, HttpCode, HttpStatus,
 } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
+import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiParam, ApiBody } from '@nestjs/swagger';
 import { firstValueFrom } from 'rxjs';
 import {
@@ -68,7 +68,10 @@ class UploadKycDto {
 @ApiBearerAuth()
 @Controller()
 export class CustomerController {
-  constructor(@Inject('CUSTOMER_SERVICE') private readonly svc: ClientProxy) {}
+  constructor(
+    @Inject('CUSTOMER_SERVICE') private readonly svc: ClientProxy,
+    @Inject('INSURER_SERVICE')  private readonly insurerSvc: ClientProxy,
+  ) {}
 
   // ── User profile ──────────────────────────────────────────────────────────
   @Get('users/me')
@@ -104,14 +107,14 @@ export class CustomerController {
   @ApiOperation({ summary: 'Browse available insurance products (public)' })
   @ApiQuery({ name: 'category', required: false, enum: ['AUTO','HEALTH','TRAVEL','GADGET','LIFE','AGRICULTURE','SME'] })
   findProducts(@Query('category') category?: string) {
-    return firstValueFrom(this.svc.send(MSG.PRODUCT_FIND_ALL, { category }));
+    return firstValueFrom(this.insurerSvc.send(MSG.PRODUCT_FIND_ALL, { category }));
   }
 
   @Public()
   @Get('products/:id')
   @ApiOperation({ summary: 'Get product details (public)' })
   findOneProduct(@Param('id') id: string) {
-    return firstValueFrom(this.svc.send(MSG.PRODUCT_FIND_ONE, { id }));
+    return firstValueFrom(this.insurerSvc.send(MSG.PRODUCT_FIND_ONE, { id }));
   }
 
   // ── Quotes ────────────────────────────────────────────────────────────────
@@ -149,7 +152,7 @@ export class CustomerController {
     const policy = await firstValueFrom(this.svc.send(MSG.POLICY_FIND_BY_ID, { id }));
     const isPrivileged = ['PLATFORM_ADMIN', 'INSURANCE_PROVIDER', 'PARTNER_ADMIN'].includes(req.user.role);
     if (!isPrivileged && policy.userId !== req.user.id) {
-      return { statusCode: 403, message: 'Not authorized to view this policy' };
+      throw new RpcException({ statusCode: 403, message: 'Not authorized to view this policy' });
     }
     return policy;
   }
@@ -228,7 +231,7 @@ export class CustomerController {
   @Get('payments/my')
   @ApiOperation({ summary: 'Get my payment history' })
   myPayments(@Request() req: any) {
-    return firstValueFrom(this.svc.send('payment.find_by_user', { userId: req.user.id }));
+    return firstValueFrom(this.svc.send(MSG.PAYMENT_FIND_BY_USER, { userId: req.user.id }));
   }
 
   @Roles('PLATFORM_ADMIN','INSURANCE_PROVIDER','PARTNER_ADMIN')

@@ -16,25 +16,6 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
-const MOCK_ACCOUNTS: Record<string, { token: string; user: any }> = {
-  'admin@kifcover.et:admin123': {
-    token: 'mock-jwt-admin',
-    user: { id: 'mock-admin', email: 'admin@kifcover.et', firstName: 'Admin', lastName: 'KifCover', role: 'PLATFORM_ADMIN', kycStatus: 'VERIFIED', isActive: true },
-  },
-  'demo@kifcover.et:demo123': {
-    token: 'mock-jwt-demo',
-    user: { id: 'mock-demo', email: 'demo@kifcover.et', firstName: 'Abebe', lastName: 'Kebede', role: 'CUSTOMER', kycStatus: 'PENDING', isActive: true },
-  },
-  'partner@kifcover.et:partner123': {
-    token: 'mock-jwt-partner',
-    user: { id: 'mock-partner', email: 'partner@kifcover.et', firstName: 'Acme', lastName: 'Fintech', role: 'PARTNER_ADMIN', kycStatus: 'VERIFIED', isActive: true },
-  },
-  'insurer@kifcover.et:insurer123': {
-    token: 'mock-jwt-insurer',
-    user: { id: 'mock-insurer', email: 'insurer@kifcover.et', firstName: 'EIC', lastName: 'Insurance', role: 'INSURANCE_PROVIDER', kycStatus: 'VERIFIED', isActive: true },
-  },
-}
-
 function roleRedirect(role: string, fallback: string | null): string {
   if (fallback) return fallback
   switch (role) {
@@ -59,14 +40,6 @@ function LoginForm() {
   const onSubmit = async (data: LoginForm) => {
     setServerError('')
 
-    const mock = MOCK_ACCOUNTS[`${data.email}:${data.password}`]
-    if (mock) {
-      setToken(mock.token)
-      setUser(mock.user)
-      router.push(roleRedirect(mock.user.role, searchParams.get('redirect')))
-      return
-    }
-
     try {
       const res = await authApi.login(data)
       const { accessToken, user } = res.data
@@ -75,7 +48,8 @@ function LoginForm() {
       router.push(roleRedirect(user.role, searchParams.get('redirect')))
     } catch (err: any) {
       const msg = err.response?.data?.message
-      setServerError(Array.isArray(msg) ? msg.join(', ') : msg || 'Invalid email or password. Please try again.')
+      const errorText = Array.isArray(msg) ? msg.join(', ') : msg || 'Invalid email or password. Please try again.'
+      setServerError(errorText)
     }
   }
 
@@ -143,17 +117,6 @@ function LoginForm() {
             <p className="text-on-surface-variant text-base">Access your insurance dashboard and policy controls.</p>
           </div>
 
-          {/* Demo credentials */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-800 space-y-1">
-            <p className="font-bold flex items-center gap-1">
-              <span className="material-symbols-outlined text-[15px]">info</span> Demo credentials
-            </p>
-            <p><span className="font-semibold">Admin:</span> admin@kifcover.et / admin123</p>
-            <p><span className="font-semibold">Customer:</span> demo@kifcover.et / demo123</p>
-            <p><span className="font-semibold">Partner:</span> partner@kifcover.et / partner123</p>
-            <p><span className="font-semibold">Insurer:</span> insurer@kifcover.et / insurer123</p>
-          </div>
-
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Email */}
             <div className="space-y-1.5">
@@ -199,9 +162,23 @@ function LoginForm() {
 
             {/* Server error */}
             {serverError && (
-              <div className="flex items-center gap-2 bg-error-container text-on-error-container px-4 py-3 rounded-xl text-sm">
-                <span className="material-symbols-outlined text-[18px]">error</span>
-                {serverError}
+              <div className={`flex items-start gap-3 px-4 py-3 rounded-xl text-sm ${
+                serverError.toLowerCase().includes('not activated') || serverError.toLowerCase().includes('contact admin')
+                  ? 'bg-amber-50 border border-amber-200 text-amber-800'
+                  : 'bg-error-container text-on-error-container'
+              }`}>
+                <span className="material-symbols-outlined text-[18px] mt-0.5">
+                  {serverError.toLowerCase().includes('not activated') || serverError.toLowerCase().includes('contact admin')
+                    ? 'admin_panel_settings'
+                    : 'error'
+                  }
+                </span>
+                <div>
+                  <p className="font-semibold">{serverError}</p>
+                  {(serverError.toLowerCase().includes('not activated') || serverError.toLowerCase().includes('contact admin')) && (
+                    <p className="mt-1 text-xs opacity-80">Your account needs admin approval before you can sign in. Please wait for a platform administrator to activate your account.</p>
+                  )}
+                </div>
               </div>
             )}
 
@@ -243,8 +220,8 @@ function LoginForm() {
           </form>
 
           <p className="text-center text-sm text-on-surface-variant">
-            Don&apos;t have an enterprise account?{' '}
-            <Link href="/auth/register" className="text-primary font-bold hover:underline">Create account</Link>
+            Don&apos;t have an account?{' '}
+            <Link href="/auth/register" className="text-primary font-bold hover:underline">Create one now</Link>
           </p>
 
           <div className="flex flex-wrap justify-center gap-4 text-xs opacity-50">

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge'
 import { useAuthStore } from '@/store/authStore'
 import { api } from '@/lib/api'
 import Link from 'next/link'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface Stats {
   totalPolicies: number
@@ -85,20 +86,26 @@ export default function PartnerDashboardPage() {
             <h3 className="font-display text-lg font-bold text-primary mb-2">Monthly Revenue</h3>
             <p className="text-xs text-on-surface-variant mb-6">Policy premiums distributed this month</p>
             {stats && (
-              <div className="flex items-end gap-2 h-36">
-                {[38, 45, 42, 55, 60, 58, 72, 68, 80, 76, 88, Math.round(stats.monthlyRevenue / 1000)].map((v, i) => (
-                  <div key={i} className="flex-1 flex flex-col justify-end">
-                    <div
-                      className={`rounded-t-sm ${i === 11 ? 'bg-amber-500' : 'bg-amber-200'}`}
-                      style={{ height: `${(v / 90) * 100}%` }}
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={[
+                    { month: 'Jan', revenue: 38000 }, { month: 'Feb', revenue: 45000 },
+                    { month: 'Mar', revenue: 42000 }, { month: 'Apr', revenue: 55000 },
+                    { month: 'May', revenue: 60000 }, { month: 'Jun', revenue: 58000 },
+                    { month: 'Jul', revenue: stats.monthlyRevenue },
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="#9ca3af" />
+                    <YAxis tick={{ fontSize: 11 }} stroke="#9ca3af" tickFormatter={(v) => `${(v/1000).toFixed(0)}K`} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', fontSize: '12px' }}
+                      formatter={(value: number) => [`ETB ${value.toLocaleString()}`, 'Revenue']}
                     />
-                  </div>
-                ))}
+                    <Bar dataKey="revenue" fill="#d97706" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             )}
-            <div className="flex justify-between mt-2 text-[10px] text-outline">
-              {['J','F','M','A','M','J','J','A','S','O','N','D'].map(m => <span key={m}>{m}</span>)}
-            </div>
           </Card>
 
           {/* Quick actions */}

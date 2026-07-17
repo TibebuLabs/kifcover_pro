@@ -1,10 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Sidebar } from '@/components/layout/Sidebar'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { api } from '@/lib/api'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 export default function AdminFinancialsPage() {
   const [overview, setOverview] = useState<any>(null)
@@ -39,11 +39,9 @@ export default function AdminFinancialsPage() {
   ]
 
   return (
-    <div className="flex min-h-screen bg-background-main">
-      <Sidebar />
-      <div className="ml-64 flex-1 flex flex-col">
-        <DashboardHeader title="Financial Management" subtitle="Trust account reconciliation, commission ledger, and payout tracking." />
-        <main className="p-8 space-y-8 flex-1">
+    <>
+      <DashboardHeader title="Financial Management" subtitle="Trust account reconciliation, commission ledger, and payout tracking." />
+      <main className="p-8 space-y-8 flex-1">
           {/* Summary KPIs */}
           <div className="grid grid-cols-3 gap-6">
             {loading ? [1,2,3].map(i => <div key={i} className="bg-white rounded-2xl border border-border-subtle h-28 animate-pulse" />) : [
@@ -91,16 +89,19 @@ export default function AdminFinancialsPage() {
             {/* Monthly trend */}
             <Card>
               <h3 className="font-display text-lg font-bold text-primary mb-6">Monthly GWP Trend</h3>
-              <div className="flex items-end gap-3 h-40">
-                {monthlyData.map((d, i) => (
-                  <div key={d.month} className="flex-1 flex flex-col justify-end items-center gap-1">
-                    <div
-                      className={`w-full rounded-t-lg ${i === monthlyData.length - 1 ? 'bg-primary' : 'bg-primary-fixed/50'}`}
-                      style={{ height: `${(d.gwp / 450000) * 100}%` }}
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="#9ca3af" />
+                    <YAxis tick={{ fontSize: 11 }} stroke="#9ca3af" tickFormatter={(v) => `${(v/1000).toFixed(0)}K`} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', fontSize: '12px' }}
+                      formatter={(value: number) => [`ETB ${value.toLocaleString()}`, '']}
                     />
-                    <span className="text-[10px] text-outline">{d.month}</span>
-                  </div>
-                ))}
+                    <Bar dataKey="gwp" fill="#1a6b4e" radius={[4, 4, 0, 0]} name="GWP" />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </Card>
           </div>
@@ -142,8 +143,7 @@ export default function AdminFinancialsPage() {
               </table>
             </div>
           </Card>
-        </main>
-      </div>
-    </div>
+      </main>
+    </>
   )
 }

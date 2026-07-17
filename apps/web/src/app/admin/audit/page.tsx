@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Sidebar } from '@/components/layout/Sidebar'
 import { DashboardHeader } from '@/components/layout/DashboardHeader'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -54,11 +53,9 @@ export default function AuditPage() {
   const totalPages = Math.ceil(total / limit)
 
   return (
-    <div className="flex min-h-screen bg-background-main">
-      <Sidebar />
-      <div className="ml-64 flex-1 flex flex-col">
-        <DashboardHeader title="Audit Logs" subtitle={`${total.toLocaleString()} immutable platform events recorded`} />
-        <main className="p-8 space-y-6 flex-1">
+    <>
+      <DashboardHeader title="Audit Logs" subtitle={`${total.toLocaleString()} immutable platform events recorded`} />
+      <main className="p-8 space-y-6 flex-1">
           <Card>
             <div className="flex items-center gap-3 mb-6 flex-wrap">
               <div className="flex-1 min-w-48 relative">
@@ -116,8 +113,7 @@ export default function AuditPage() {
               </div>
             )}
           </Card>
-        </main>
-      </div>
-    </div>
+      </main>
+    </>
   )
 }

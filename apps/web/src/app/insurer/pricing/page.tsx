@@ -29,17 +29,17 @@ export default function InsurerPricingPage() {
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<RuleForm>()
 
   useEffect(() => {
-    api.get('/products').then(r => setProducts(r.data)).catch(() => {}).finally(() => setLoading(false))
+    api.get('/insurer/products').then(r => setProducts(r.data)).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   const onAdd = async (data: RuleForm) => {
     setErr('')
     try {
-      await api.post(`/products/${data.productId}/pricing-rules`, {
+      await api.post(`/insurer/products/${data.productId}/pricing-rules`, {
         ruleKey: data.ruleKey, operator: data.operator,
         value: String(data.value), multiplier: +data.multiplier,
       })
-      const r = await api.get('/products')
+      const r = await api.get('/insurer/products')
       setProducts(r.data)
       reset()
       setAdding(false)
@@ -48,8 +48,8 @@ export default function InsurerPricingPage() {
 
   const onRemove = async (ruleId: string) => {
     try {
-      await api.delete(`/products/pricing-rules/${ruleId}`)
-      const r = await api.get('/products')
+      await api.delete(`/insurer/pricing-rules/${ruleId}`)
+      const r = await api.get('/insurer/products')
       setProducts(r.data)
     } catch {}
   }

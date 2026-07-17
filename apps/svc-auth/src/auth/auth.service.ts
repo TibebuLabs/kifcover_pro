@@ -5,6 +5,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import { RpcException } from '@nestjs/microservices';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -23,11 +24,16 @@ export class AuthService {
     email: string;
     phone?: string;
     password: string;
+    role?: string;
   }) {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Email already registered');
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
+
+    const validRoles = ['CUSTOMER', 'PARTNER_ADMIN', 'INSURANCE_PROVIDER'];
+    const role = dto.role && validRoles.includes(dto.role) ? dto.role : 'CUSTOMER';
+
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
@@ -35,6 +41,7 @@ export class AuthService {
         firstName: dto.firstName,
         lastName: dto.lastName,
         passwordHash,
+        role: role as any,
       },
     });
 
@@ -45,10 +52,12 @@ export class AuthService {
   // ── Login (email+password) ────────────────────────────────────────────────
   async login(email: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user || !user.isActive) throw new UnauthorizedException('Invalid credentials');
+    if (!user) throw new RpcException({ statusCode: 401, message: 'Invalid credentials' });
+
+    if (!user.isActive) throw new RpcException({ statusCode: 403, message: 'Account not activated. Please contact admin.' });
 
     const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) throw new UnauthorizedException('Invalid credentials');
+    if (!valid) throw new RpcException({ statusCode: 401, message: 'Invalid credentials' });
 
     return { accessToken: this._sign(user), user: this._safe(user) };
   }
@@ -157,5 +166,36 @@ export class AuthService {
   private _safe(user: any) {
     const { passwordHash: _, ...safe } = user;
     return safe;
+  }
+
+  // ── Admin: pending users ──────────────────────────────────────────────────
+  async getPendingUsers() {
+    const users = await this.prisma.user.findMany({
+      where: { isActive: false },
+      orderBy: { createdAt: 'desc' },
+    });
+    return users.map((u) => this._safe(u));
+  }
+
+  // ── Admin: approve user ───────────────────────────────────────────────────
+  async approveUser(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.isActive) return { message: 'User already active', user: this._safe(user) };
+
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: { isActive: true },
+    });
+    return { message: 'User approved successfully', user: this._safe(updated) };
+  }
+
+  // ── Admin: reject user ────────────────────────────────────────────────────
+  async rejectUser(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+
+    await this.prisma.user.delete({ where: { id } });
+    return { message: 'User rejected and removed' };
   }
 }

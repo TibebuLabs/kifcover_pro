@@ -21,10 +21,9 @@ export default function InsurerDashboardPage() {
 
   useEffect(() => {
     Promise.all([
-      api.get('/admin/overview').catch(() => null),
       api.get('/insurer/stats').catch(() => null),
-    ]).then(([ov, ps]) => {
-      setOverview(ov?.data ?? {
+    ]).then(([ps]) => {
+      setOverview(ps?.data ?? {
         totalPolicies: 4520, activePolicies: 3890, totalClaims: 312,
         pendingClaims: 47, grossWrittenPremium: 4_200_000, avgClaimProcessingHours: 31.4, totalUsers: 1248,
       })
