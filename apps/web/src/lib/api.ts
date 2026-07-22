@@ -112,6 +112,7 @@ export const insurerApi = {
   addRule:         (id: string, d: any)  => api.post(`/insurer/products/${id}/pricing-rules`, d),
   removeRule:      (ruleId: string)      => api.delete(`/insurer/pricing-rules/${ruleId}`),
   stats:           ()                    => api.get('/insurer/stats'),
+  overview:        ()                    => api.get('/insurer/overview'),
 }
 
 // Partner

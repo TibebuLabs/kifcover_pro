@@ -69,6 +69,20 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Dropdown animation */
+@keyframes animateIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-in {
+  animation: animateIn 0.15s ease-out;
+}
+
+/* Elevated shadow for dropdowns */
+.shadow-elevated {
+  box-shadow: 0 8px 30px -4px rgba(0,0,0,0.12), 0 2px 8px -2px rgba(0,0,0,0.08);
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #f1f5f9; }

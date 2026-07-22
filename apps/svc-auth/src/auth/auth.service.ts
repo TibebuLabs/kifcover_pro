@@ -54,8 +54,6 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) throw new RpcException({ statusCode: 401, message: 'Invalid credentials' });
 
-    if (!user.isActive) throw new RpcException({ statusCode: 403, message: 'Account not activated. Please contact admin.' });
-
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new RpcException({ statusCode: 401, message: 'Invalid credentials' });
 

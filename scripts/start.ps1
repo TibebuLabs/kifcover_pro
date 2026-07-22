@@ -55,7 +55,7 @@ $services = @(
 foreach ($svc in $services) {
     $svcPath = Join-Path $root $svc.Dir
     Start-Process -FilePath "cmd.exe" `
-        -ArgumentList "/c", "title [$($svc.Name)] & cd /d $svcPath & node ..\..\node_modules\@nestjs\cli\bin\nest.js start --watch" `
+        -ArgumentList "/c", "title [$($svc.Name)] & cd /d $svcPath & node dist/main" `
         -WindowStyle Hidden
     Write-Host "  $($svc.Name) (port $($svc.Port)) launching..." -ForegroundColor Gray
 }
@@ -88,7 +88,7 @@ if ($elapsed -ge $maxWait) {
 Write-Host "[4/4] Starting gateway (port 3000)..." -ForegroundColor Yellow
 $gwPath = Join-Path $root "apps\gateway"
 Start-Process -FilePath "cmd.exe" `
-    -ArgumentList "/c", "title [GW] & cd /d $gwPath & node ..\..\node_modules\@nestjs\cli\bin\nest.js start --watch" `
+    -ArgumentList "/c", "title [GW] & cd /d $gwPath & node dist/main" `
     -WindowStyle Hidden
 
 $gwElapsed = 0

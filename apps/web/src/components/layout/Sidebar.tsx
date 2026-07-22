@@ -13,8 +13,6 @@ const customerNav: NavItem[] = [
   { icon: 'assignment_turned_in',label: 'Claims',       href: '/dashboard/claims' },
   { icon: 'payments',            label: 'Payments',     href: '/dashboard/payments' },
   { icon: 'storefront',          label: 'Marketplace',  href: '/marketplace' },
-  { icon: 'account_circle',      label: 'My Account',   href: '/dashboard/account' },
-  { icon: 'security',            label: 'Security',     href: '/dashboard/security' },
 ]
 
 const partnerNav: NavItem[] = [
@@ -25,7 +23,6 @@ const partnerNav: NavItem[] = [
   { icon: 'payments',            label: 'Payouts',          href: '/partner/payouts' },
   { icon: 'bar_chart',           label: 'Reports',          href: '/partner/reports' },
   { icon: 'api',                 label: 'API Access',       href: '/partner/api-access' },
-  { icon: 'settings',            label: 'Settings',         href: '/partner/settings' },
 ]
 
 const insurerNav: NavItem[] = [
@@ -47,22 +44,29 @@ const adminNav: NavItem[] = [
   { icon: 'history',         label: 'Audit Logs',       href: '/admin/audit' },
 ]
 
-function getRoleConfig(role?: string): { nav: NavItem[]; label: string; color: string } {
+const settingsNav: NavItem[] = [
+  { icon: 'settings', label: 'Settings',  href: '/dashboard/account' },
+  { icon: 'security', label: 'Security',  href: '/dashboard/security' },
+]
+
+function getRoleConfig(role?: string): { nav: NavItem[]; label: string; color: string; settingsHref: string } {
   switch (role) {
-    case 'PARTNER_ADMIN':      return { nav: partnerNav,  label: 'Partner',  color: 'text-amber-600' }
-    case 'INSURANCE_PROVIDER': return { nav: insurerNav,  label: 'Insurer',  color: 'text-violet-600' }
-    case 'PLATFORM_ADMIN':     return { nav: adminNav,    label: 'Admin',    color: 'text-red-600' }
-    default:                   return { nav: customerNav, label: 'Customer', color: 'text-primary' }
+    case 'PARTNER_ADMIN':      return { nav: partnerNav,  label: 'Partner',  color: 'text-amber-600',  settingsHref: '/partner/settings' }
+    case 'INSURANCE_PROVIDER': return { nav: insurerNav,  label: 'Insurer',  color: 'text-violet-600', settingsHref: '/insurer/dashboard' }
+    case 'PLATFORM_ADMIN':     return { nav: adminNav,    label: 'Admin',    color: 'text-red-600',    settingsHref: '/dashboard/account' }
+    default:                   return { nav: customerNav, label: 'Customer', color: 'text-primary',    settingsHref: '/dashboard/account' }
   }
 }
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { user, logout } = useAuthStore()
+  const { user } = useAuthStore()
   const { isOpen, close } = useSidebar()
-  const { nav, label, color } = getRoleConfig(user?.role)
+  const { nav, label, color, settingsHref } = getRoleConfig(user?.role)
 
-  const showCustomerSection = user?.role === 'PLATFORM_ADMIN'
+  const customerSettingsNav: NavItem[] = user?.role === 'PARTNER_ADMIN'
+    ? [{ icon: 'settings', label: 'Settings', href: '/partner/settings' }]
+    : settingsNav
 
   const NavLink = ({ icon, label: lbl, href }: NavItem) => (
     <Link
@@ -105,39 +109,11 @@ export function Sidebar() {
       <nav className="flex-1 space-y-0.5 overflow-y-auto">
         {nav.map((item) => <NavLink key={item.href} {...item} />)}
 
-        {showCustomerSection && (
-          <>
-            <div className="pt-4 pb-2 px-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-outline">Platform</p>
-            </div>
-            {customerNav.slice(0, 3).map((item) => <NavLink key={item.href} {...item} />)}
-          </>
-        )}
-      </nav>
-
-      {/* User identity + logout */}
-      <div className="border-t border-outline-variant/30 pt-4 mt-4 space-y-1">
-        <div className="flex items-center gap-3 px-4 py-2 mb-1">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-on-primary text-xs font-bold shrink-0">
-            {user?.firstName?.[0]}{user?.lastName?.[0]}
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-on-surface truncate">{user?.firstName} {user?.lastName}</p>
-            <p className="text-[10px] text-on-surface-variant truncate">{user?.email}</p>
-          </div>
+        {/* Settings & Security at bottom of nav */}
+        <div className="pt-4 mt-2 border-t border-outline-variant/20 space-y-0.5">
+          {customerSettingsNav.map((item) => <NavLink key={item.href} {...item} />)}
         </div>
-        <Link href="/developer" className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-xl text-sm transition-colors">
-          <span className="material-symbols-outlined text-[20px]">code</span>
-          Developer Tools
-        </Link>
-        <button
-          onClick={logout}
-          className="flex w-full items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-error-container hover:text-on-error-container rounded-xl text-sm transition-colors"
-        >
-          <span className="material-symbols-outlined text-[20px]">logout</span>
-          Log Out
-        </button>
-      </div>
+      </nav>
     </>
   )
 
