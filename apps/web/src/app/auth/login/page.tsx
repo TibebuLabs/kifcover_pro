@@ -45,7 +45,11 @@ function LoginForm() {
       const { accessToken, user } = res.data
       setToken(accessToken)
       setUser(user)
-      router.push(roleRedirect(user.role, searchParams.get('redirect')))
+      if (user.isActive === false) {
+        router.push('/auth/pending')
+      } else {
+        router.push(roleRedirect(user.role, searchParams.get('redirect')))
+      }
     } catch (err: any) {
       const msg = err.response?.data?.message
       const errorText = Array.isArray(msg) ? msg.join(', ') : msg || 'Invalid email or password. Please try again.'

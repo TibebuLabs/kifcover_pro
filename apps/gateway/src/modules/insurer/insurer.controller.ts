@@ -136,6 +136,14 @@ export class InsurerController {
     return firstValueFrom(this.svc.send(MSG.PRODUCT_STATS, { insurerId: id }));
   }
 
+  @Roles('PLATFORM_ADMIN','INSURANCE_PROVIDER')
+  @Get('overview')
+  @ApiOperation({ summary: 'Insurer dashboard overview (policies, claims, GWP)' })
+  overview(@Request() req: any) {
+    const id = req.user.role === 'INSURANCE_PROVIDER' ? req.user.id : undefined;
+    return firstValueFrom(this.svc.send(MSG.INSURER_OVERVIEW, { insurerId: id }));
+  }
+
   // ── Premium calculation ───────────────────────────────────────────────────
   @Public()
   @Post('products/:id/calculate-premium')

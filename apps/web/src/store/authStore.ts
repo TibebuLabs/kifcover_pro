@@ -5,10 +5,12 @@ import Cookies from 'js-cookie'
 interface User {
   id: string
   email: string
+  phone?: string
   firstName: string
   lastName: string
   role: string
   kycStatus: string
+  isActive?: boolean
 }
 
 interface AuthState {

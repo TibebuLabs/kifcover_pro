@@ -1,13 +1,21 @@
-import { Sidebar } from '@/components/layout/Sidebar'
-import { SidebarProvider } from '@/components/layout/SidebarContext'
+'use client'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuthStore } from '@/store/authStore'
+import { DashboardShell } from '@/components/layout/DashboardShell'
 
 export default function PartnerLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <SidebarProvider>
-      <div className="flex min-h-screen bg-background-main">
-        <Sidebar />
-        <div className="ml-0 lg:ml-64 flex-1 flex flex-col">{children}</div>
-      </div>
-    </SidebarProvider>
-  )
+  const router = useRouter()
+  const { user, token } = useAuthStore()
+
+  useEffect(() => {
+    if (!token || !user) {
+      router.replace('/auth/login')
+    } else if (user.isActive === false) {
+      router.replace('/auth/pending')
+    }
+  }, [token, user, router])
+
+  if (!token || !user || user.isActive === false) return null
+  return <DashboardShell>{children}</DashboardShell>
 }

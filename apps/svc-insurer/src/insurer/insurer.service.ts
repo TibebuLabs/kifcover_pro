@@ -108,6 +108,56 @@ export class InsurerService {
     return { total, active, byCategory, byStatus };
   }
 
+  // ── Insurer dashboard overview (raw SQL on shared DB) ─────────────────────
+  async getInsurerOverview(insurerId?: string) {
+    const idFilter = insurerId
+      ? `JOIN insurance_products ip ON ip.id = pol."productId" AND ip."insurerId" = '${insurerId}'`
+      : '';
+
+    const [policyRow, claimRow, premiumRow] = await Promise.all([
+      this.prisma.$queryRawUnsafe<{ total: bigint; active: bigint }[]>(
+        `SELECT
+           COUNT(pol.*)::int AS total,
+           COUNT(pol.*) FILTER (WHERE pol.status = 'ACTIVE')::int AS active
+         FROM policies pol
+         ${idFilter}`
+      ),
+      this.prisma.$queryRawUnsafe<{ total: bigint; pending: bigint; avg_hours: number }[]>(
+        `SELECT
+           COUNT(c.*)::int AS total,
+           COUNT(c.*) FILTER (WHERE c.status = 'SUBMITTED' OR c.status = 'UNDER_REVIEW')::int AS pending,
+           COALESCE(
+             AVG(EXTRACT(EPOCH FROM (COALESCE(c."resolvedAt", NOW()) - c."createdAt")) / 3600)::numeric(10,1),
+             0
+           )::float AS avg_hours
+         FROM claims c
+         JOIN policies pol ON pol.id = c."policyId"
+         ${insurerId ? `JOIN insurance_products ip ON ip.id = pol."productId" AND ip."insurerId" = '${insurerId}'` : ''}`
+      ),
+      this.prisma.$queryRawUnsafe<{ gwp: number }[]>(
+        `SELECT COALESCE(SUM(py.amount), 0)::float AS gwp
+         FROM payments py
+         JOIN policies pol ON pol.id = py."policyId"
+         ${insurerId ? `JOIN insurance_products ip ON ip.id = pol."productId" AND ip."insurerId" = '${insurerId}'` : ''}
+         WHERE py.status = 'COMPLETED'`
+      ),
+    ]);
+
+    const policies = policyRow[0] ?? { total: 0, active: 0 };
+    const claims   = claimRow[0]   ?? { total: 0, pending: 0, avg_hours: 0 };
+    const premium  = premiumRow[0]  ?? { gwp: 0 };
+
+    return {
+      totalPolicies:            Number(policies.total),
+      activePolicies:           Number(policies.active),
+      totalClaims:              Number(claims.total),
+      pendingClaims:            Number(claims.pending),
+      grossWrittenPremium:      Number(premium.gwp),
+      avgClaimProcessingHours:  Number(claims.avg_hours),
+      totalUsers:               0,
+    };
+  }
+
   // ── Premium calculation engine ────────────────────────────────────────────
 
   async calculatePremium(productId: string, metadata: Record<string, any> = {}) {

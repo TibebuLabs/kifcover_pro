@@ -65,6 +65,11 @@ export class InsurerController {
     return this.svc.getProductStats(p.insurerId);
   }
 
+  @MessagePattern(MSG.INSURER_OVERVIEW)
+  overview(@Payload() p: { insurerId?: string }) {
+    return this.svc.getInsurerOverview(p.insurerId);
+  }
+
   @MessagePattern('insurer.calculate_premium')
   calculatePremium(@Payload() p: { productId: string; metadata: Record<string, any> }) {
     return this.svc.calculatePremium(p.productId, p.metadata);

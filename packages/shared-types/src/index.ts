@@ -351,6 +351,7 @@ export const MSG = {
   PRODUCT_ADD_RULE:    'product.add_rule',
   PRODUCT_REMOVE_RULE: 'product.remove_rule',
   PRODUCT_STATS:       'product.stats',
+  INSURER_OVERVIEW:    'insurer.overview',
   PRODUCT_PUBLISH:     'insurer.product.publish',
   PRODUCT_SUSPEND:     'insurer.product.suspend',
   PRODUCT_CALC_PREMIUM:'insurer.calculate_premium',
